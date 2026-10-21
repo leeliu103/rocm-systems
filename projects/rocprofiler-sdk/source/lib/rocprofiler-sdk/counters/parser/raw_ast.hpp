@@ -29,6 +29,8 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 
+#include <cmath>
+#include <limits>
 #include <map>
 #include <optional>
 #include <string>
@@ -75,11 +77,14 @@ struct LinkedList
     : name(std::string{CHECK_NOTNULL(v)})
     , next(next_node)
     {}
-    LinkedList(const char* v, int d, LinkedList* next_node)
+    LinkedList(const char* v, double d, LinkedList* next_node)
     : name(std::string{CHECK_NOTNULL(v)})
-    , data(d)
     , next(next_node)
-    {}
+    {
+        if(d < 0 || d > std::numeric_limits<int>::max() || d != std::trunc(d))
+            throw std::runtime_error("Dimension index must be a non-negative integer in int range");
+        data = static_cast<int>(d);
+    }
     LinkedList(const char* v, const char* r, LinkedList* next_node)
     : name(std::string{CHECK_NOTNULL(v)})
     , range_data(std::string{CHECK_NOTNULL(r)})
@@ -96,7 +101,7 @@ struct RawAST
 
     // Stores either the name or digit depending on whether this
     // is a name or number
-    std::variant<std::monostate, std::string, int64_t> value{std::monostate{}};
+    std::variant<std::monostate, std::string, double> value{std::monostate{}};
 
     // Counter set of ASTs needed to compute this counter.
     // Operation is applied to all counters in this set.
@@ -131,7 +136,7 @@ struct RawAST
     , value(std::string{CHECK_NOTNULL(v)})
     {}
 
-    RawAST(NodeType t, int64_t v)
+    RawAST(NodeType t, double v)
     : type(t)
     , value(v)
     {}
@@ -284,9 +289,9 @@ struct formatter<rocprofiler::counters::RawAST>
         {
             out = fmt::format_to(out, " \"Value\":\"{}\",", *string_val);
         }
-        else if(const auto* int_val = std::get_if<int64_t>(&ast.value))
+        else if(const auto* number = std::get_if<double>(&ast.value))
         {
-            out = fmt::format_to(out, " \"Value\":{},", *int_val);
+            out = fmt::format_to(out, " \"Value\":{},", *number);
         }
 
         if(ast.range)

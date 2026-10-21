@@ -471,6 +471,7 @@ char* yytext;
 #line 1 "scanner.l"
 #line 4 "scanner.l"
 #include <fmt/format.h>
+#include <charconv>
 
 #include "parser.h"
 #include "raw_ast.hpp"
@@ -711,7 +712,7 @@ YY_DECL
     }
 
     {
-#line 15 "scanner.l"
+#line 16 "scanner.l"
 
 #line 739 "scanner.cpp"
 
@@ -777,113 +778,116 @@ YY_DECL
                     goto yy_find_action;
 
                 case 1: YY_RULE_SETUP
-#line 16 "scanner.l"
+#line 17 "scanner.l"
                     {
                         return ADD;
                     }
                     YY_BREAK
                 case 2: YY_RULE_SETUP
-#line 17 "scanner.l"
+#line 18 "scanner.l"
                     {
                         return SUB;
                     }
                     YY_BREAK
                 case 3: YY_RULE_SETUP
-#line 18 "scanner.l"
+#line 19 "scanner.l"
                     {
                         return MUL;
                     }
                     YY_BREAK
                 case 4: YY_RULE_SETUP
-#line 19 "scanner.l"
+#line 20 "scanner.l"
                     {
                         return DIV;
                     }
                     YY_BREAK
                 case 5: YY_RULE_SETUP
-#line 20 "scanner.l"
+#line 21 "scanner.l"
                     {
                         return ABS;
                     }
                     YY_BREAK
                 case 6: YY_RULE_SETUP
-#line 21 "scanner.l"
+#line 22 "scanner.l"
                     {
                         return OP;
                     }
                     YY_BREAK
                 case 7: YY_RULE_SETUP
-#line 22 "scanner.l"
+#line 23 "scanner.l"
                     {
                         return CP;
                     }
                     YY_BREAK
                 case 8: YY_RULE_SETUP
-#line 23 "scanner.l"
+#line 24 "scanner.l"
                     {
                         return EQUALS;
                     }
                     YY_BREAK
                 case 9: YY_RULE_SETUP
-#line 24 "scanner.l"
+#line 25 "scanner.l"
                     {
                         return CM;
                     }
                     YY_BREAK
                 case 10: YY_RULE_SETUP
-#line 25 "scanner.l"
+#line 26 "scanner.l"
                     {
                         return COLON;
                     }
                     YY_BREAK
                 case 11: YY_RULE_SETUP
-#line 26 "scanner.l"
+#line 27 "scanner.l"
                     {
                         return O_SQ;
                     }
                     YY_BREAK
                 case 12: YY_RULE_SETUP
-#line 27 "scanner.l"
+#line 28 "scanner.l"
                     {
                         return C_SQ;
                     }
                     YY_BREAK
                 case 13:
-#line 30 "scanner.l"
+#line 31 "scanner.l"
                 case 14: YY_RULE_SETUP
-#line 30 "scanner.l"
+#line 31 "scanner.l"
                     {
-                        yylval.d = atoi(yytext);
+                        auto parsed = std::from_chars(yytext, yytext + yyleng, yylval.d);
+                        if(parsed.ec != std::errc{} || parsed.ptr != yytext + yyleng)
+                            throw std::runtime_error(
+                                fmt::format("Invalid numeric literal {}", yytext));
                         return NUMBER;
                     }
                     YY_BREAK
                 case 15: YY_RULE_SETUP
-#line 34 "scanner.l"
+#line 37 "scanner.l"
                     {
                         return REDUCE;
                     }
                     YY_BREAK
                 case 16: YY_RULE_SETUP
-#line 35 "scanner.l"
+#line 38 "scanner.l"
                     {
                         return SELECT;
                     }
                     YY_BREAK
                 case 17: YY_RULE_SETUP
-#line 36 "scanner.l"
+#line 39 "scanner.l"
                     {
                         return ACCUMULATE;
                     }
                     YY_BREAK
                 case 18: YY_RULE_SETUP
-#line 38 "scanner.l"
+#line 41 "scanner.l"
                     {
                         yylval.s = strdup(yytext);
                         return NAME;
                     }
                     YY_BREAK
                 case 19: YY_RULE_SETUP
-#line 42 "scanner.l"
+#line 45 "scanner.l"
                     {
                         yylval.s = strdup(yytext);
                         return DIM_ARGS_RANGE;
@@ -892,28 +896,28 @@ YY_DECL
                 case 20:
                     /* rule 20 can match eol */
                     YY_RULE_SETUP
-#line 48 "scanner.l"
+#line 51 "scanner.l"
                     {
                         return EOL;
                     }
                     YY_BREAK
                 case 21: YY_RULE_SETUP
-#line 49 "scanner.l"
+#line 52 "scanner.l"
 
                     YY_BREAK
                 case 22: YY_RULE_SETUP
-#line 50 "scanner.l"
+#line 53 "scanner.l"
                     { /* ignore white space */
                     }
                     YY_BREAK
                 case 23: YY_RULE_SETUP
-#line 51 "scanner.l"
+#line 54 "scanner.l"
                     {
                         throw std::runtime_error(fmt::format("Mystery character {}", *yytext));
                     }
                     YY_BREAK
                 case 24: YY_RULE_SETUP
-#line 52 "scanner.l"
+#line 55 "scanner.l"
                     YY_FATAL_ERROR("flex scanner jammed");
                     YY_BREAK
 #line 931 "scanner.cpp"
@@ -1877,4 +1881,4 @@ yyfree(void* ptr)
 
 #define YYTABLES_NAME "yytables"
 
-#line 52 "scanner.l"
+#line 55 "scanner.l"
