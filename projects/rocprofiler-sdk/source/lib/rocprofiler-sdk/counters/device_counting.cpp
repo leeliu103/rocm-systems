@@ -449,35 +449,6 @@ start_agent_ctx(const context::context* ctx)
             break;
         }
 
-        // On-demand: create the profile queue now (destroyed in stop_agent_ctx)
-        if(hsa::use_ondemand_queue())
-        {
-            agent->init_device_counting_service_queue(*hsa::get_core_table(),
-                                                      *hsa::get_amd_ext_table());
-        }
-
-        // But if we have an agent cache, we need a profile queue.
-        if(!agent->profile_queue())
-        {
-            ROCP_ERROR << "No profile queue found for context: " << ctx->context_idx;
-            status = ROCPROFILER_STATUS_ERROR_NO_PROFILE_QUEUE;
-            break;
-        }
-
-        // Lock the device for profiling (non-fatal if it fails)
-        // Only lock here if using NEW behavior (lock at context start, not at configuration)
-        if(!use_device_lock_at_start() && counters::counter_collection_has_device_lock())
-        {
-            counters::counter_collection_device_lock(agent->get_rocp_agent(), true);
-        }
-
-        // Disable PTL (non-fatal if it fails)
-        // Only disable here if using NEW behavior (at context start, not at configuration)
-        if(!use_device_lock_at_start())
-        {
-            counters::counter_collection_ptl_disable(agent->get_rocp_agent());
-        }
-
         callback_data.set_profile = false;
 
         // Ask the tool what profile we should use for this agent
@@ -531,6 +502,35 @@ start_agent_ctx(const context::context* ctx)
         {
             callback_data.packet.reset();
             continue;
+        }
+
+        // On-demand: create the profile queue now (destroyed in stop_agent_ctx)
+        if(hsa::use_ondemand_queue())
+        {
+            agent->init_device_counting_service_queue(*hsa::get_core_table(),
+                                                      *hsa::get_amd_ext_table());
+        }
+
+        // But if we have an agent cache, we need a profile queue.
+        if(!agent->profile_queue())
+        {
+            ROCP_ERROR << "No profile queue found for context: " << ctx->context_idx;
+            status = ROCPROFILER_STATUS_ERROR_NO_PROFILE_QUEUE;
+            break;
+        }
+
+        // Lock the device for profiling (non-fatal if it fails)
+        // Only lock here if using NEW behavior (lock at context start, not at configuration)
+        if(!use_device_lock_at_start() && counters::counter_collection_has_device_lock())
+        {
+            counters::counter_collection_device_lock(agent->get_rocp_agent(), true);
+        }
+
+        // Disable PTL (non-fatal if it fails)
+        // Only disable here if using NEW behavior (at context start, not at configuration)
+        if(!use_device_lock_at_start())
+        {
+            counters::counter_collection_ptl_disable(agent->get_rocp_agent());
         }
 
         CHECK(callback_data.profile);
