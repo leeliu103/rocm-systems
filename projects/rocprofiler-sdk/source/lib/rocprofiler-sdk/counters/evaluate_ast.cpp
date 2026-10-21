@@ -795,7 +795,7 @@ EvaluateAST::read_pkt(const aql::CounterPacketConstruct* pkt_gen, hsa::AQLPacket
 
             for(const auto& metric : *metrics)
             {
-                auto& vec = it.data->emplace(metric.id(), std::vector<rocprofiler_counter_record_t>{})
+                auto& vec = it.data->emplace(metric.result_key(), std::vector<rocprofiler_counter_record_t>{})
                                 .first->second;
                 auto& next_rec = vec.emplace_back();
                 set_counter_in_rec(next_rec.id, {.handle = metric.id()});
@@ -952,7 +952,7 @@ EvaluateAST::evaluate(
         // todo update how to read the hybrid metric
         case REFERENCE_NODE:
         {
-            auto* result = rocprofiler::common::get_val(results_map, _metric.id());
+            auto* result = rocprofiler::common::get_val(results_map, _metric.result_key());
             if(!result)
                 throw std::runtime_error(
                     fmt::format("Unable to lookup results for metric {}", _metric.name()));

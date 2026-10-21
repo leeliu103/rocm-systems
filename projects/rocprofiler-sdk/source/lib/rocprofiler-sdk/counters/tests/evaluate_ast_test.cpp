@@ -599,6 +599,7 @@ TEST(evaulate_ast, evaulate_hybrid_counters)
         ASSERT_TRUE(eval_counters);
         ASSERT_EQ(eval_counters->size(), eval_count);
         ASSERT_EQ(eval_counters->begin()->flags(), flag);
+        base_counter_decode[eval_counters->begin()->result_key()] = expected;
         std::vector<std::unique_ptr<std::vector<rocprofiler_record_counter_t>>> cache;
         asts.at("gfx9").at(name).expand_derived(asts.at("gfx9"));
         auto ret = asts.at("gfx9").at(name).evaluate(base_counter_decode, cache);
