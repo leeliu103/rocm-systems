@@ -669,8 +669,15 @@ hsa_ven_amd_aqlprofile_iterate_event_coord(hsa_agent_t                          
 
         std::vector<uint8_t> coord;
         coord.resize(attrib.get_num());
-        if(auto status = attrib.get_coordinates(
-               coord.data(), sample_id * attrib.get_num_instances() + event.block_index);
+        auto* factory = aql_profile::Pm4Factory::Create(agent);
+        uint64_t cumulative_id = sample_id * attrib.get_num_instances() + event.block_index;
+        if(factory->GetGpuId() == aql_profile::GFX12_GPU_ID)
+        {
+            const auto num_events = factory->GetNumEvents(event.block_name);
+            if(sample_id >= num_events) return HSA_STATUS_ERROR_INVALID_INDEX;
+            cumulative_id = static_cast<uint64_t>(event.block_index) * num_events + sample_id;
+        }
+        if(auto status = attrib.get_coordinates(coord.data(), cumulative_id);
            status != HSA_STATUS_SUCCESS)
             return status;
 
