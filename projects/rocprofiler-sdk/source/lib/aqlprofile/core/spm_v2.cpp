@@ -107,23 +107,33 @@ public:
         status = rocprofiler::aqlprofile::get_amd_ext_table()->hsa_amd_spm_acquire_fn(s->hsa_agent);
         CHECKHSA(status, return );
 
-        // This non-blocking (timeout = 0) HsaSpmSetDestBuffer() call will clear up all the
-        // residual counters from previous SPM runs. Most of the time, nothing will be copied.
-        // This call will also trigger KFD to call spm_start() function. We must make sure
-        // spm_start() is finished before we give back the control to caller of
-        // start_spm_threads().
-        spm_set_dest_buffer_args args = *s;
-        args.size_copied              = 0;
-        args.timeout                  = 0;
-        if(HsaSpmSetDestBuffer(args) != HSA_STATUS_SUCCESS)
-            throw std::runtime_error("hsa_amd_spm_set_dest_buffer() init error");
+        try
+        {
+            // Clear residual counters and finish KFD's spm_start() before returning to the caller.
+            spm_set_dest_buffer_args args = *s;
+            args.size_copied              = 0;
+            args.timeout                  = 0;
+            if(HsaSpmSetDestBuffer(args) != HSA_STATUS_SUCCESS)
+                throw std::runtime_error("hsa_amd_spm_set_dest_buffer() init error");
 
-        producer_thread = std::thread(producer, s);
-        consumer_thread = std::thread(consumer, s, cb, userdata);
+            consumer_thread = std::thread(consumer, s, cb, userdata);
+            producer_thread = std::thread(producer, s);
+        } catch(...)
+        {
+            {
+                std::lock_guard<std::mutex> lock(s->work_mutex);
+                s->stop_cons_thread = true;
+                s->work_cond.notify_one();
+            }
+            if(consumer_thread.joinable()) consumer_thread.join();
+            rocprofiler::aqlprofile::get_amd_ext_table()->hsa_amd_spm_release_fn(agent);
+            throw;
+        }
     }
 
     ~ManagerThread()
     {
+        if(status != HSA_STATUS_SUCCESS) return;
         s->stop_prod_thread.store(true);
 
         if(producer_thread.joinable()) producer_thread.join();
