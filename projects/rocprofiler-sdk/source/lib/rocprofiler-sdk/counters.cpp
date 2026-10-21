@@ -515,11 +515,15 @@ rocprofiler_create_counter(const char*               name,
     }
 
     counter_id->handle = add_metric->arch_to_metric.at(agent_ptr->name).back().id();
-    // Regenerate ASTs and Dimension Cache for this agent
+    // Regenerate ASTs and dimension caches for every agent sharing this architecture.
     try
     {
         counters::get_ast_map(true);
-        counters::get_dimension_cache(agent, true);
+        for(const auto* affected_agent : rocprofiler::agent::get_agents())
+        {
+            if(std::string_view{affected_agent->name} == agent_ptr->name)
+                counters::get_dimension_cache(affected_agent->id, true);
+        }
     } catch(std::exception& e)
     {
         ROCP_FATAL << "Could not regenerate ASTs and Dimension Cache " << e.what();
