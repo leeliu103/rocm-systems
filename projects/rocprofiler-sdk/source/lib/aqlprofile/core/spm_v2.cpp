@@ -58,7 +58,6 @@ struct spm_set_dest_buffer_args
 struct spm_state_t : public spm_set_dest_buffer_args
 {
     aqlprofile_agent_handle_t aql_agent{};
-    std::thread*              manager_thread{nullptr};
     std::mutex                work_mutex{};
     std::condition_variable   work_cond{};
     std::atomic<bool>         data_ready{};
@@ -462,19 +461,20 @@ public:
     void remove(aqlprofile_handle_t handle)
     {
         auto lock = std::unique_lock{mut};
-        try
-        {
-            map.at(handle)->manager_thread = nullptr;
-            map.at(handle)->memory         = nullptr;
-            map.erase(handle);
-        } catch(...)
-        {}
+        auto state = map.extract(handle);
+        auto thread = threads.extract(handle);
+        // Destroy the manager before its buffers, without holding the map lock while joining.
+        lock.unlock();
     }
     bool setthread(aqlprofile_handle_t handle, std::unique_ptr<ManagerThread>&& thread)
     {
         auto lock       = std::unique_lock{mut};
-        bool bret       = threads.find(handle) != threads.end();
-        threads[handle] = std::move(thread);
+        if(map.find(handle) == map.end()) return false;
+        bool bret       = thread || threads.find(handle) != threads.end();
+        auto& current   = threads[handle];
+        auto previous   = std::move(current);
+        current         = std::move(thread);
+        lock.unlock();
         return bret;
     }
 
@@ -694,7 +694,8 @@ aqlprofile_spm_start(aqlprofile_handle_t            handle,
         auto manager = std::make_unique<ManagerThread>(s, data_cb, userdata);
 
         CHECKHSA(manager->status, return manager->status);
-        aqlprofile::spm::spm_state_map()->setthread(handle, std::move(manager));
+        if(!aqlprofile::spm::spm_state_map()->setthread(handle, std::move(manager)))
+            return HSA_STATUS_ERROR_NOT_INITIALIZED;
     } catch(...)
     {
         return HSA_STATUS_ERROR;
