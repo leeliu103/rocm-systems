@@ -369,7 +369,7 @@ AllocateCounter(counter_des_t&                                          counter_
         throw std::runtime_error(std::string("SPM not supported for block ") + block_info->name);
 
     if(reg_index >= block_info->spm_counter_count)
-        throw std::runtime_error(
+        throw std::out_of_range(
             std::string("Event is out of block counter registers number limit for ") +
             block_info->name);
 

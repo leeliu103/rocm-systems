@@ -7,6 +7,27 @@
 #include <stdexcept>
 #include <memory>
 
+namespace aql_profile
+{
+class Pm4Factory;
+}
+
+namespace pm4_builder
+{
+class counters_vector;
+}
+
+namespace aqlprofile
+{
+namespace spm
+{
+pm4_builder::counters_vector
+CountersVec(const aqlprofile_pmc_event_t* events,
+            size_t                        num_events,
+            aql_profile::Pm4Factory*      pm4_factory);
+}
+}
+
 inline bool
 operator<(const aqlprofile_handle_t& a, const aqlprofile_handle_t& b)
 {
