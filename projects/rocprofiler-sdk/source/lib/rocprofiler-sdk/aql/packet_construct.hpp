@@ -86,8 +86,9 @@ public:
     std::unique_ptr<hsa::CounterAQLPacket> construct_packet(const CoreApiTable&,
                                                             const AmdExtTable&);
 
-    const counters::Metric*             event_to_metric(const aqlprofile_pmc_event_t& event) const;
-    std::vector<aqlprofile_pmc_event_t> get_all_events() const;
+    const std::vector<counters::Metric>* event_to_metrics(
+        const aqlprofile_pmc_event_t& event) const;
+    std::vector<aqlprofile_pmc_event_t>        get_all_events() const;
     const std::vector<aqlprofile_pmc_event_t>& get_counter_events(const counters::Metric&) const;
 
     rocprofiler_agent_id_t agent() const { return _agent; }
@@ -107,10 +108,10 @@ protected:
         std::vector<aqlprofile_pmc_event_t> events;
     };
 
-    rocprofiler_agent_id_t                             _agent;
-    std::vector<AQLProfileMetric>                      _metrics;
-    std::vector<aqlprofile_pmc_event_t>                _events;
-    std::map<aqlprofile_pmc_event_t, counters::Metric> _event_to_metric;
+    rocprofiler_agent_id_t                                          _agent;
+    std::vector<AQLProfileMetric>                                   _metrics;
+    std::vector<aqlprofile_pmc_event_t>                             _events;
+    std::map<aqlprofile_pmc_event_t, std::vector<counters::Metric>> _event_to_metrics;
 };
 
 class ThreadTraceAQLPacketFactory
