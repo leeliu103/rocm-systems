@@ -365,7 +365,28 @@ public:
     static uint32_t sq_spm_select_value(const counter_des_t& counter_des,
                                         const uint32_t&      bit_depth = 32)
     {
-        const uint32_t spm_mode = (bit_depth == 16) ? 1 : 3;  // PERFMON_SPM_MODE_16/32BIT_CLAMP
+        uint32_t spm_mode = (bit_depth == 16) ? PERFMON_SPM_MODE_16BIT_CLAMP
+                                             : PERFMON_SPM_MODE_32BIT_CLAMP;
+#if GFX12_VARIANT != GFX12_VARIANT_1250
+        // PAL selector SQ_PERF_SEL_INSTS_VEC32_LEVEL_LDS_PARAM_DIRECT is absent from soc24_enum.h.
+        constexpr uint32_t level_lds_param_direct = 0xfc;
+        const auto event_id = counter_des.id;
+        const bool is_level = counter_des.block_des.id == HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ &&
+              (event_id == SQ_PERF_SEL_LEVEL_WAVES ||
+               (event_id >= SQ_PERF_SEL_INST_LEVEL_EXP && event_id <= SQ_PERF_SEL_INST_LEVEL_TEX_STORE) ||
+               event_id == SQ_PERF_SEL_IFETCH_LEVEL ||
+               (event_id >= SQ_PERF_SEL_USER_LEVEL0 && event_id <= SQ_PERF_SEL_USER_LEVEL15) ||
+               (event_id >= SQ_PERF_SEL_INSTS_VEC32_LEVEL_LDS_LOAD &&
+                event_id <= SQ_PERF_SEL_INSTS_VEC32_LEVEL_LDS_STORE) ||
+               event_id == SQ_PERF_SEL_INSTS_VEC32_LEVEL_LDS ||
+               event_id == level_lds_param_direct ||
+               (event_id >= SQC_PERF_SEL_ICACHE_INFLIGHT_LEVEL &&
+                event_id <= SQC_PERF_SEL_DCACHE_TC_INFLIGHT_LEVEL));
+        // Level events must retain their state across samples (PAL IsSqWgpLevelEvent).
+        if(is_level)
+            spm_mode = (bit_depth == 16) ? PERFMON_SPM_MODE_16BIT_NO_CLAMP
+                                         : PERFMON_SPM_MODE_32BIT_NO_CLAMP;
+#endif
         uint32_t       sq_perfcounter0_sel =
             SET_REG_FIELD_BITS(SQ_PERFCOUNTER0_SELECT, PERF_SEL, counter_des.id) |
             SET_REG_FIELD_BITS(SQ_PERFCOUNTER0_SELECT, SPM_MODE, spm_mode);
