@@ -174,7 +174,7 @@ private:
     bool asymmetric_cu_patch;
 
     // Per-(SE, SA) CU-activity mask (2 CU bits per WGP) from the DRM cu_bitmap.
-    // bIsWGPcounter11 reads active WGPs and zero-fills harvested ones (reading a
+    // The bitmap read path zero-fills harvested WGPs (reading a
     // harvested WGP aliases onto an active one). Indexed by physical WGP slot, so
     // no remap is needed and the emitted sample count stays == GetNumWGPs().
     // Synthesized fully-active when no bitmap is present (V0/V1 agents).
@@ -308,10 +308,10 @@ private:
                    : instance_index;
     }
 
-    // Populate sa_cu_mask_[se][sa] from the agent cu_bitmap; on GFX11 also grow
+    // Populate sa_cu_mask_[se][sa] from the agent cu_bitmap; on GFX11 and gfx1200/1201 grow
     // wgp_per_sa_ to the physical WGP span (highest active WGP + 1) so the read
     // loop's fixed [0, wgp_per_sa_) bound reaches a middle-harvested WGP (e.g.
-    // gfx1151 active {0,1,2,4} -> span 5). GFX12 keeps its cu_num-derived count.
+    // gfx1151 active {0,1,2,4} -> span 5). gfx1250 retains its asymmetric layout.
     //
     // Each logical (se, sa) maps to a raw bitmap slot: when logical SEs exceed
     // the bitmap's SE dimension, upper SEs fold into higher SA columns, mirroring
@@ -356,7 +356,7 @@ private:
             }
         }
 
-        if constexpr(Primitives::GFXIP_LEVEL == 11)
+        if(Primitives::GFXIP_LEVEL == 11 || (Primitives::GFXIP_LEVEL == 12 && !asymmetric_cu_patch))
             wgp_per_sa_ = std::max(wgp_per_sa_, max_wgp_index + 1);
     }
 
@@ -373,12 +373,12 @@ public:
                             (se_number_ * sarrays_per_se_);
         this->wgp_per_sa_ /= agent_info->xcc_num;
 
+        this->asymmetric_cu_patch = strncmp(agent_info->name, "gfx1250", 7) ? false : true;
         build_sa_cu_mask(agent_info);
 
         // Due to MI300 CP firmware issue we need to use mem_mapped_register mode to patch for GCEA
         // hang. Otherwise both perfcounters mode and mem_mapped_register mode should work.
         builder.bUsePerfCounterMode = (xcc_number_ > 1) ? false : true;
-        this->asymmetric_cu_patch   = strncmp(agent_info->name, "gfx1250", 7) ? false : true;
     }
 
     int GetNumWGPs() override
@@ -906,12 +906,14 @@ public:
                             grbm_value = Primitives::grbm_se_index_value(se_index);
                         }
 
-                        bool bIsWGPcounter11 = Primitives::GFXIP_LEVEL == 11 &&
-                                               (block_info->attr & CounterBlockWgpAttr);
+                        bool bUseWGPBitmap =
+                            (Primitives::GFXIP_LEVEL == 11 ||
+                             (Primitives::GFXIP_LEVEL == 12 && !asymmetric_cu_patch)) &&
+                            (block_info->attr & CounterBlockWgpAttr);
                         bool bIsWGPcounter12 = Primitives::GFXIP_LEVEL >= 12 &&
                                                (block_info->attr & CounterBlockWgpAttr);
 
-                        if(bIsWGPcounter11)
+                        if(bUseWGPBitmap)
                         {
                             // Read active WGPs at their physical slot; zero-fill
                             // harvested ones (see sa_cu_mask_). Fixed [0, wgp_per_sa_)

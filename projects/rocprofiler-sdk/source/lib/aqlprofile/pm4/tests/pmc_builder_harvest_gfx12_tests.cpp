@@ -3,8 +3,9 @@
 //
 // GFX12 companion to pmc_builder_harvest_tests.cpp (PR #8229). Kept in its own
 // translation unit because the gfx11 and gfx12 register headers cannot coexist
-// in a single TU. Confirms the harvest wgp_per_sa_ growth is GFX11-only: on
-// GFX12 the WGP count stays cu_num-derived regardless of the DRM cu_bitmap.
+// in a single TU. Confirms gfx1200/gfx1201 grow wgp_per_sa_ to the physical WGP
+// span from the DRM cu_bitmap, as GFX11 does, while gfx1250 keeps its
+// cu_num-derived count.
 //
 // NOTE: no main() here on purpose (see pmc_builder_tests.cpp).
 
@@ -36,14 +37,15 @@ using Gfx12PmcBuilder =
     pm4_builder::GpuPmcBuilder<pm4_builder::Gfx12CmdBuilder, gfx12_cntx_prim, false>;
 
 AgentInfo
-make_gfx12_agent(uint32_t se_num,
-                 uint32_t sarrays_per_se,
-                 uint32_t cu_num,
-                 uint32_t sa_bitmap_value)
+make_gfx12_agent(uint32_t    se_num,
+                 uint32_t    sarrays_per_se,
+                 uint32_t    cu_num,
+                 uint32_t    sa_bitmap_value,
+                 const char* name = "gfx1200")
 {
     AgentInfo info{};
-    std::strncpy(info.gfxip, "gfx1200", sizeof(info.gfxip) - 1);
-    std::strncpy(info.name, "gfx1200", sizeof(info.name) - 1);
+    std::strncpy(info.gfxip, name, sizeof(info.gfxip) - 1);
+    std::strncpy(info.name, name, sizeof(info.name) - 1);
     info.se_num               = se_num;
     info.xcc_num              = 1;
     info.xcc_per_aid          = 1;
@@ -59,17 +61,22 @@ make_gfx12_agent(uint32_t se_num,
 }
 }  // namespace
 
-// Same harvest pattern that grows GFX11 to span 5 must leave GFX12 at its
-// cu_num-derived count (growth is gated on GFXIP_LEVEL == 11).
-TEST(PmcBuilderHarvestGfx12Test, WgpGrowthDisabled)
+// gfx1200/gfx1201 grow to the physical WGP span so a middle-harvested WGP's
+// neighbours are still read; gfx1250 keeps its cu_num-derived count.
+TEST(PmcBuilderHarvestGfx12Test, WgpGrowthFollowsBitmap)
 {
-    // cu_num = 32 -> wgp_per_sa_ = (16) / (2 * 2) = 4.
+    // cu_num = 32 -> wgp_per_sa_ = (16) / (2 * 2) = 4; active WGPs {0,1,2,4} -> span 5.
     AgentInfo       harvested = make_gfx12_agent(2, 2, 32, /*value=*/0x33Fu);
     Gfx12PmcBuilder b1(&harvested);
-    EXPECT_EQ(b1.GetNumWGPs(), 4);
+    EXPECT_EQ(b1.GetNumWGPs(), 5);
 
-    // Different bitmap, same cu_num -> still cu_num-derived, unchanged.
+    // Bitmap within the cu_num-derived span -> unchanged.
     AgentInfo       contig = make_gfx12_agent(2, 2, 32, /*value=*/0xFFu);
     Gfx12PmcBuilder b2(&contig);
     EXPECT_EQ(b2.GetNumWGPs(), 4);
+
+    // gfx1250 does not use the bitmap span.
+    AgentInfo       gfx1250 = make_gfx12_agent(2, 2, 32, /*value=*/0x33Fu, "gfx1250");
+    Gfx12PmcBuilder b3(&gfx1250);
+    EXPECT_EQ(b3.GetNumWGPs(), 4);
 }

@@ -42,7 +42,7 @@ namespace
 // fallback entirely.
 //
 // The cu_bitmap is only consumed by the SQ-counter WGP iteration path in
-// pm4/pmc_builder.h (bIsWGPcounter11), which only runs on GFX11+. On GFX9
+// pm4/pmc_builder.h (bUseWGPBitmap), which only runs on GFX11+. On GFX9
 // (MI100/200/300) and GFX10 the bitmap is unused, so the 64-entry DRM scan
 // here would be pure overhead serializing on the kernel DRM mutex under
 // parallel ctest -- skip it. GetGpuId() is the same chip-family resolver
