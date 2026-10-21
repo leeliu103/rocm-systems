@@ -897,7 +897,14 @@ EvaluateAST::evaluate(
         }
         else if(r2->size() == r1->size())
         {
-            // Normal combination
+            // Pair records by their dimension coordinates; reductions and selections do not
+            // return records in a common order
+            auto by_coordinates = [](const auto& a, const auto& b) {
+                return rec_to_dim_pos(a.id, ROCPROFILER_DIMENSION_NONE) <
+                       rec_to_dim_pos(b.id, ROCPROFILER_DIMENSION_NONE);
+            };
+            std::sort(r1->begin(), r1->end(), by_coordinates);
+            std::sort(r2->begin(), r2->end(), by_coordinates);
             std::transform(r1->begin(), r1->end(), r2->begin(), r1->begin(), op);
         }
         else
