@@ -482,7 +482,9 @@ aqlprofile_iterate_event_coord(aqlprofile_agent_handle_t        agent,
 
         std::array<uint8_t, 32> coord;
         ROCP_FATAL_IF(attrib.get_num() >= coord.size()) << "attrib num exceeds coordinates size";
-        attrib.get_coordinates(coord.data(), counter_id);
+        if(auto status = attrib.get_coordinates(coord.data(), counter_id);
+           status != HSA_STATUS_SUCCESS)
+            return status;
 
         for(size_t i = 0; i < attrib.get_num(); i++)
         {

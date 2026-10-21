@@ -158,8 +158,9 @@ public:
     uint64_t       get_num() const { return dimensions.size(); };
     EventDimension get_dim(uint64_t index) const { return dimensions.at(index); };
 
-    hsa_status_t get_coordinates(uint8_t* coordinates, int64_t cumulative_id) const
+    hsa_status_t get_coordinates(uint8_t* coordinates, uint64_t cumulative_id) const
     {
+        if(cumulative_id >= get_total_elements()) return HSA_STATUS_ERROR_INVALID_INDEX;
         const int end = static_cast<int>(get_num()) - 1;
         for(int i = end; i >= 0; i--)
         {

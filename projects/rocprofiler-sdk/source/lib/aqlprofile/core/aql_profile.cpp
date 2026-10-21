@@ -668,8 +668,10 @@ hsa_ven_amd_aqlprofile_iterate_event_coord(hsa_agent_t                          
 
         std::vector<uint8_t> coord;
         coord.resize(attrib.get_num());
-        attrib.get_coordinates(coord.data(),
-                               sample_id * attrib.get_num_instances() + event.block_index);
+        if(auto status = attrib.get_coordinates(
+               coord.data(), sample_id * attrib.get_num_instances() + event.block_index);
+           status != HSA_STATUS_SUCCESS)
+            return status;
 
         for(size_t i = 0; i < attrib.get_num(); i++)
         {
