@@ -527,17 +527,20 @@ EvaluateAST::set_dimensions(rocprofiler_agent_id_t agent_id)
         {
             auto first  = _children.at(0).set_dimensions(agent_id);
             auto second = _children.at(1).set_dimensions(agent_id);
-            // - first.size() > 1 && second.size() > 1
-            // This is an explicit compatibility change to allow existing integer * COUNTER
-            // derived counters to function
-            if(first != second && first.size() > 1 && second.size() > 1)
+            auto is_scalar = [](const auto& dimensions) {
+                return std::all_of(dimensions.begin(), dimensions.end(),
+                                   [](const auto& dim) { return dim.size() == 1; });
+            };
+            const bool first_scalar  = is_scalar(first);
+            const bool second_scalar = is_scalar(second);
+            if(first != second && !first_scalar && !second_scalar)
                 throw std::runtime_error(
                     fmt::format("Dimension mis-mismatch: {} (dims: {}) and {} (dims: {})",
                                 _children[0].metric(),
                                 fmt::join(_children[0].set_dimensions(agent_id), ","),
                                 _children[1].metric(),
                                 fmt::join(_children[1].set_dimensions(agent_id), ",")));
-            _dimension_types = first.size() > second.size() ? first : second;
+            _dimension_types = first_scalar ? second : first;
         }
         break;
         case ACCUMULATE_NODE:
