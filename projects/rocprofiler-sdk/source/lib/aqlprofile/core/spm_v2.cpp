@@ -748,10 +748,8 @@ producer(std::shared_ptr<spm_state_t> s)
 
         if(HsaSpmSetDestBuffer(args) != HSA_STATUS_SUCCESS)
         {
-            std::unique_lock<std::mutex> lock(s->work_mutex);
             std::cerr << "hsa_amd_spm_set_dest_buffer() error" << std::endl;
-            s->size_copied = 0;
-            consumer_handle.notify();
+            // The shutdown notification preserves pending data without publishing the old buffer.
             return;
         }
 
