@@ -895,6 +895,11 @@ public:
                             grbm_value = Primitives::grbm_inst_index_value(
                                 GetInstanceIndex(block_des.index, block_info));
                         }
+                        else if(Primitives::GFXIP_LEVEL == 12 && !asymmetric_cu_patch &&
+                                (block_info->attr & CounterBlockSaAttr))
+                        {
+                            grbm_value = Primitives::grbm_se_sh_index_value(se_index, sarray);
+                        }
                         else if(block_info->attr & CounterBlockSeAttr)
                         {
                             grbm_value = Primitives::grbm_se_index_value(se_index);
