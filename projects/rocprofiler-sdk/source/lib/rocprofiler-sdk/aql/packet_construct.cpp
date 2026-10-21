@@ -32,6 +32,7 @@
 
 #include <fmt/format.h>
 #include <hsa/hsa_ext_amd.h>
+#include <set>
 
 namespace rocprofiler
 {
@@ -82,7 +83,7 @@ CounterPacketConstruct::CounterPacketConstruct(rocprofiler_agent_id_t           
                                                  &validate_event_result) != HSA_STATUS_SUCCESS);
             ROCP_FATAL_IF(!validate_event_result)
                 << "Invalid Metric: " << block_index << " " << event_id;
-            _event_to_metric[_metrics.back().events.back()] = x;
+            _event_to_metrics[_metrics.back().events.back()].push_back(x);
         }
     }
     _events = get_all_events();
@@ -235,17 +236,21 @@ std::vector<aqlprofile_pmc_event_t>
 CounterPacketConstruct::get_all_events() const
 {
     std::vector<aqlprofile_pmc_event_t> ret;
+    std::set<aqlprofile_pmc_event_t>    seen;
     for(const auto& metric : _metrics)
     {
-        ret.insert(ret.end(), metric.instances.begin(), metric.instances.end());
+        for(const auto& event : metric.instances)
+        {
+            if(seen.insert(event).second) ret.push_back(event);
+        }
     }
     return ret;
 }
 
-const counters::Metric*
-CounterPacketConstruct::event_to_metric(const aqlprofile_pmc_event_t& event) const
+const std::vector<counters::Metric>*
+CounterPacketConstruct::event_to_metrics(const aqlprofile_pmc_event_t& event) const
 {
-    if(const auto* ptr = rocprofiler::common::get_val(_event_to_metric, event))
+    if(const auto* ptr = rocprofiler::common::get_val(_event_to_metrics, event))
     {
         return ptr;
     }
@@ -271,17 +276,14 @@ CounterPacketConstruct::can_collect()
     // Verify that the counters fit within harrdware limits
     std::map<std::pair<hsa_ven_amd_aqlprofile_block_name_t, uint32_t>, int64_t> counter_count;
     std::map<std::pair<hsa_ven_amd_aqlprofile_block_name_t, uint32_t>, int64_t> max_allowed;
-    for(auto& metric : _metrics)
+    for(const auto& instance : _events)
     {
-        for(auto& instance : metric.events)
+        auto block_pair       = std::make_pair(instance.block_name, instance.block_index);
+        auto [iter, inserted] = counter_count.emplace(block_pair, 0);
+        iter->second++;
+        if(inserted)
         {
-            auto block_pair       = std::make_pair(instance.block_name, instance.block_index);
-            auto [iter, inserted] = counter_count.emplace(block_pair, 0);
-            iter->second++;
-            if(inserted)
-            {
-                max_allowed.emplace(block_pair, get_block_counters(_agent, instance));
-            }
+            max_allowed.emplace(block_pair, get_block_counters(_agent, instance));
         }
     }
 
