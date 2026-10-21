@@ -370,6 +370,7 @@ read_agent_ctx(const context::context*                    ctx,
             callback_data.sample_in_flight.store(true, std::memory_order_release);
             hsa::get_core_table()->hsa_signal_store_relaxed_fn(callback_data.completion, -1);
             wait_if_sync();
+            if((flags & ROCPROFILER_COUNTER_FLAG_ASYNC) == 0) callback_data.cached_counters = nullptr;
             continue;
         }
 
