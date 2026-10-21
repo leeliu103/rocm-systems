@@ -24,6 +24,7 @@
 #include "lib/aqlprofile/aqlprofile.hpp"
 
 #include "lib/aqlprofile/core/counter_dimensions.hpp"
+#include "lib/aqlprofile/core/counters.hpp"
 
 #include "lib/aqlprofile/core/logger.hpp"
 #include "lib/aqlprofile/core/pm4_factory.h"
@@ -158,6 +159,30 @@ CountersVec(std::vector<EventRequest>& events, Pm4Factory* pm4_factory)
         vec.push_back(GetCounter(pm4_factory, grbm_event, index_map, 0));
     }
     return vec;
+}
+
+hsa_status_t
+ValidateCounters(aqlprofile_agent_handle_t     agent,
+                 const aqlprofile_pmc_event_t* events,
+                 size_t                        num_events)
+{
+    try
+    {
+        CounterMemoryManager planner(agent, nullptr, nullptr, nullptr);
+        planner.CopyEvents(events, num_events);
+        CountersVec(planner.GetEvents(), Pm4Factory::Create(agent));
+    } catch(hsa_status_t status)
+    {
+        return status;
+    } catch(const std::runtime_error&)
+    {
+        // GetCounter: no counter register left in the block for the event
+        return HSA_STATUS_ERROR_OUT_OF_RESOURCES;
+    } catch(...)
+    {
+        return HSA_STATUS_ERROR;
+    }
+    return HSA_STATUS_SUCCESS;
 }
 
 // Method for iterating the events output data
