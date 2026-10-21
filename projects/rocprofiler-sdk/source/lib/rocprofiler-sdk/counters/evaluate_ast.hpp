@@ -131,7 +131,7 @@ public:
      *                     data goes with what base counters.
      * @param [in] pkt     AQL packet structure to decode
      * @return std::unordered_map<uint64_t, std::vector<rocprofiler_counter_record_t>> map of
-     *         {metric->id(), vector<records>}
+     *         {metric->result_key(), vector<records>}, including accumulation flags
      *
      */
     static std::unordered_map<uint64_t, std::vector<rocprofiler_counter_record_t>> read_pkt(
