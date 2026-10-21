@@ -660,6 +660,7 @@ hsa_ven_amd_aqlprofile_iterate_event_coord(hsa_agent_t                          
                                            hsa_ven_amd_aqlprofile_coordinate_callback_t callback,
                                            void*                                        userdata)
 {
+    if(callback == nullptr) return HSA_STATUS_ERROR_INVALID_ARGUMENT;
     try
     {
         const EventAttribDimension& attrib = EventAttribDimension::get(agent, event.block_name);
@@ -676,7 +677,9 @@ hsa_ven_amd_aqlprofile_iterate_event_coord(hsa_agent_t                          
         for(size_t i = 0; i < attrib.get_num(); i++)
         {
             EventDimension dim = attrib.get_dim(i);
-            callback(i, dim.id, dim.extent, coord[i], dim.name.data(), userdata);
+            if(auto status = callback(i, dim.id, dim.extent, coord[i], dim.name.data(), userdata);
+               status != HSA_STATUS_SUCCESS)
+                return status;
         }
     } catch(...)
     {
