@@ -63,6 +63,7 @@ struct agent_callback_data
     rocprofiler_device_counting_service_cb_t               cb              = nullptr;
     rocprofiler_buffer_id_t                                buffer          = {.handle = 0};
     bool                                                   set_profile     = false;
+    bool                                                   started         = false;
     std::vector<rocprofiler_counter_record_t>*             cached_counters = nullptr;
     std::atomic<bool>                                      sample_in_flight{false};
 
@@ -78,10 +79,12 @@ struct agent_callback_data
     , agent_id(rhs.agent_id)
     , cb(rhs.cb)
     , buffer(rhs.buffer)
+    , started(rhs.started)
     , sample_in_flight(rhs.sample_in_flight.load(std::memory_order_acquire))
     {
         rhs.completion.handle   = 0;
         rhs.start_signal.handle = 0;
+        rhs.started             = false;
         rhs.sample_in_flight.store(false, std::memory_order_release);
     }
 
@@ -105,16 +108,18 @@ device_counting_service_hsa_registration();
 // Send the AQL start packet to a queue on the agent to start
 // collecting counter data. This function is synchronous and will
 // return when the agent has started collecting data (or if there
-// is an error).
+// is an error). is_locked is reserved for the caller that acquired
+// operation ownership before publishing the active context.
 rocprofiler_status_t
-start_agent_ctx(const context::context* ctx);
+start_agent_ctx(const context::context* ctx, bool is_locked = false);
 
 // Send the AQL end packet to a queue on the agent to stop
 // collecting counter data. This function is synchronous and will
 // return when the agent has stopped collecting data (or if there
-// is an error).
+// is an error). is_locked is reserved for the startup/read operation
+// completing its own deferred stop or failed-start cleanup.
 rocprofiler_status_t
-stop_agent_ctx(const context::context* ctx);
+stop_agent_ctx(const context::context* ctx, bool is_locked = false);
 
 // Read the counter data from the agent. This function is synchronous
 // if flags is not set to ASYNC. If ASYNC is set, the function will

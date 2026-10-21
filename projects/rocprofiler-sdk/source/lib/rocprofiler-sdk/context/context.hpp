@@ -145,7 +145,8 @@ struct device_counting_service
         DISABLED,
         LOCKED,
         ENABLED,
-        EXIT
+        EXIT,
+        STOP_REQUESTED
     };
     std::atomic<state> status{state::DISABLED};
 

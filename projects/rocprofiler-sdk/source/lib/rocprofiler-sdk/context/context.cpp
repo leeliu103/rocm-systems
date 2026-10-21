@@ -571,6 +571,16 @@ start_context(rocprofiler_context_id_t context_id)
             }
         }
 
+        // Reserve device startup before publishing the context or releasing the lifecycle
+        // marker. A stop from the selection callback must see an in-progress operation.
+        if(cfg->device_counter_collection)
+        {
+            auto expected = device_counting_service::state::DISABLED;
+            if(!cfg->device_counter_collection->status.compare_exchange_strong(
+                   expected, device_counting_service::state::LOCKED))
+                return ROCPROFILER_STATUS_ERROR_SERVICE_ALREADY_CONFIGURED;
+        }
+
         // try to find a nullptr slot first
         for(size_t i = 0; i < active_contexts.size(); ++i)
         {
@@ -623,6 +633,8 @@ start_context(rocprofiler_context_id_t context_id)
 
     if(!success)
     {
+        if(cfg->device_counter_collection)
+            cfg->device_counter_collection->status.store(device_counting_service::state::DISABLED);
         rocprofiler::hsa::queue_interposition::notify_queue_interposition_consumer_context_stopped(
             cfg);
         get_num_active_contexts().fetch_sub(1, std::memory_order_release);
@@ -648,7 +660,13 @@ start_context(rocprofiler_context_id_t context_id)
     // this marker forever.
     _release_pending();
 
-    if(cfg->device_counter_collection) status = rocprofiler::counters::start_agent_ctx(cfg);
+    if(cfg->device_counter_collection)
+    {
+        status = rocprofiler::counters::start_agent_ctx(cfg, true);
+        if(status != ROCPROFILER_STATUS_SUCCESS &&
+           status != ROCPROFILER_STATUS_ERROR_HSA_NOT_LOADED)
+            return status;
+    }
 #if ROCPROFILER_SDK_HSA_PC_SAMPLING > 0
     if(cfg->pc_sampler) status = rocprofiler::pc_sampling::start_service(cfg);
 #endif
