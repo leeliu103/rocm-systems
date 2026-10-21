@@ -193,6 +193,15 @@ public:
     // SPM specific
     virtual uint32_t GetSpmSampleDelayMax() { return 0; }
 
+    bool IsEventInRange(const GpuBlockInfo& info, uint32_t event_id) const
+    {
+        // Only these gfx1200/1201 maxima have been checked against the selector enums.
+        if(gpu_id_ != GFX12_GPU_ID) return true;
+        for(const char* name : {"SQ", "GRBM", "GL2C", "TA", "TCP", "TD"})
+            if(strcmp(info.name, name) == 0) return event_id <= info.event_id_max;
+        return true;
+    }
+
     const GpuBlockInfo* GetBlockInfo(const aqlprofile_pmc_event_t* event) const
     {
         const GpuBlockInfo* info = block_map_.Get(event->block_name);
@@ -200,11 +209,8 @@ public:
         // Checking that the block index is in proper range
         if(DecodeSpmInstanceIndex(info, event->block_index) >= info->instance_count)
             throw std::runtime_error("Bad Index");
-            // Checking that the counter event index is in proper range
-#if 0
-    if (event->counter_id > info->event_id_max)
-      throw event_exception(std::string("Bad event ID, "), *event);
-#endif
+        if(!IsEventInRange(*info, event->event_id))
+            throw std::runtime_error("Bad event ID");
         return info;
     }
 
@@ -216,11 +222,8 @@ public:
         // Checking that the block index is in proper range
         if(DecodeSpmInstanceIndex(info, event->block_index) >= info->instance_count)
             throw event_exception(std::string("Bad block index, "), *event);
-            // Checking that the counter event index is in proper range
-#if 0
-    if (event->counter_id > info->event_id_max)
-      throw event_exception(std::string("Bad event ID, "), *event);
-#endif
+        if(!IsEventInRange(*info, event->counter_id))
+            throw event_exception(std::string("Bad event ID, "), *event);
         return info;
     }
 

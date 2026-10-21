@@ -314,6 +314,8 @@ counter_des_t
 GetCounter(aql_profile::Pm4Factory* pm4_factory, const aqlprofile_pmc_event_t& event)
 {
     const GpuBlockInfo* block_info = pm4_factory->GetBlockInfo(event.block_name);
+    if(!pm4_factory->IsEventInRange(*block_info, event.event_id))
+        throw HSA_STATUS_ERROR_INVALID_ARGUMENT;
     const block_des_t   block_des  = {block_info->id, event.block_index};
 
     // Preserve current behavior, but make it obvious when callers enter paths
@@ -861,6 +863,7 @@ aqlprofile_spm_is_event_supported(aqlprofile_agent_handle_t agent, aqlprofile_pm
 
     const GpuBlockInfo* block_info = pm4_factory->GetBlockInfo(event.block_name);
     if(!block_info || block_info->spm_counter_count == 0) return false;
+    if(!pm4_factory->IsEventInRange(*block_info, event.event_id)) return false;
 
     return aqlprofile::spm::resolve_spm_depth(pm4_factory, event);
 }

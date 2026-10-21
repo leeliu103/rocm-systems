@@ -95,7 +95,7 @@ GetCounter(Pm4Factory*                                    pm4_factory,
            std::map<block_des_t, uint32_t, lt_block_des>& index_map,
            int                                            num_sp_events)
 {
-    const GpuBlockInfo* block_info = pm4_factory->GetBlockInfo(event.block_name);
+    const GpuBlockInfo* block_info = pm4_factory->GetBlockInfo(&event);
     const block_des_t   block_des  = {block_info->id, event.block_index};
     const auto          ret        = index_map.insert({block_des, 0});
     auto                reg_index  = ret.first->second;
