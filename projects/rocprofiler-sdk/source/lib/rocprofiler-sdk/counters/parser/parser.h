@@ -97,7 +97,7 @@ union YYSTYPE
 
     RawAST*     a;  /* For ast node */
     LinkedList* ll; /* For linked list node */
-    int64_t     d;
+    double      d;
     char*       s;
 
 #    line 103 "parser.h"

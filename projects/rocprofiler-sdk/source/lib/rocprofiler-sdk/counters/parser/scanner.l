@@ -1,6 +1,7 @@
 %option noyywrap nodefault yylineno nounput
 
 %{
+#include <charconv>
 #include <fmt/format.h>
 
 #include "raw_ast.hpp"
@@ -28,7 +29,8 @@ EXP	([Ee][-+]?[0-9]+)
 
 [0-9]+"."[0-9]*{EXP}? | 
 "."?[0-9]+{EXP}? { 
-    yylval.d = atoi(yytext);
+    if(std::from_chars(yytext, yytext + yyleng, yylval.d).ec != std::errc{})
+        throw std::runtime_error(fmt::format("Invalid numeric literal {}", yytext));
     return NUMBER; }
 
 "reduce" { return REDUCE; }

@@ -32,7 +32,7 @@ void yyerror(rocprofiler::counters::RawAST**, const char *s) { ROCP_ERROR << s; 
 %union {
  RawAST* a;          /* For ast node */
  LinkedList* ll;     /* For linked list node */
- int64_t d;
+ double d;
  char* s;
 }
 

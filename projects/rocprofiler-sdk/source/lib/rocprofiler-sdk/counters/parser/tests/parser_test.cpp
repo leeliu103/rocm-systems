@@ -326,6 +326,24 @@ TEST(parser, parse_accum_counter)
     }
 }
 
+TEST(parser, numeric_literals)
+{
+    std::map<std::string, double> expressionToExpected = {
+        {"AB * 0.5", 0.5}, {"AB / 1e9", 1e9}, {"AB * 4294967296", 4294967296.0}};
+
+    for(auto [op, expected] : expressionToExpected)
+    {
+        RawAST* ast = nullptr;
+        auto*   buf = yy_scan_string(op.c_str());
+        yyparse(&ast);
+        ASSERT_TRUE(ast);
+        ASSERT_EQ(ast->counter_set.size(), 2);
+        EXPECT_EQ(std::get<double>(ast->counter_set.at(1)->value), expected) << op;
+        yy_delete_buffer(buf);
+        delete ast;
+    }
+}
+
 TEST(parser, parse_nested_accum_counter)
 {
     std::map<std::string, std::string> expressionToExpected = {
