@@ -470,6 +470,7 @@ int        yy_flex_debug = 0;
 char* yytext;
 #line 1 "scanner.l"
 #line 4 "scanner.l"
+#include <charconv>
 #include <fmt/format.h>
 
 #include "parser.h"
@@ -853,7 +854,9 @@ YY_DECL
                 case 14: YY_RULE_SETUP
 #line 30 "scanner.l"
                     {
-                        yylval.d = atoi(yytext);
+                        auto parsed = std::from_chars(yytext, yytext + yyleng, yylval.d);
+                        if(parsed.ec != std::errc{} || parsed.ptr != yytext + yyleng)
+                            throw std::runtime_error(fmt::format("Invalid numeric literal {}", yytext));
                         return NUMBER;
                     }
                     YY_BREAK

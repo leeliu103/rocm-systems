@@ -461,9 +461,9 @@ EvaluateAST::EvaluateAST(rocprofiler_counter_id_t                       out_id,
 
     if(_type == NodeType::NUMBER_NODE)
     {
-        _raw_value = std::get<int64_t>(ast.value);
+        _raw_value = std::get<double>(ast.value);
         _static_value.push_back({.id            = 0,
-                                 .counter_value = static_cast<double>(std::get<int64_t>(ast.value)),
+                                 .counter_value = _raw_value,
                                  .dispatch_id   = 0,
                                  .user_data     = {.value = 0},
                                  .agent_id      = {.handle = 0}});
