@@ -53,6 +53,9 @@ public:
         std::unique_lock<std::mutex> lk(mut);
 
         if(valid.exchange(true)) return;
+        // A callback may restart the worker after requesting its own exit.
+        if(!exited.load()) return;
+        if(consumer.joinable()) consumer.join();
         exited.store(false);
 
         internal_threading::notify_pre_internal_thread_create(ROCPROFILER_LIBRARY);
@@ -67,6 +70,8 @@ public:
         valid.store(false);
         cv.notify_all();
 
+        // The worker finishes draining after its current callback returns.
+        if(consumer.get_id() == std::this_thread::get_id()) return;
         if(!exited) cv.wait(lk, [&] { return exited.load(); });
         if(consumer.joinable()) consumer.join();
     }
