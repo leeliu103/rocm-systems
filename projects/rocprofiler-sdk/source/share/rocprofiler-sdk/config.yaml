@@ -7398,6 +7398,24 @@ rocprofiler-sdk:
             - gfx1250
           block: SQ
           event: 237
+    - name: SQ_INSTS_WMMA
+      description: Number of WMMA instructions issued per VEC32. This event does not
+        distinguish instruction shape or precision.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1200
+            - gfx1201
+          block: SQ
+          event: 233
+    - name: SQ_INSTS_WMMA_sum
+      description: Total WMMA VEC32 instruction count across all WGP instances.
+      properties: []
+      definitions:
+        - architectures:
+            - gfx1200
+            - gfx1201
+          expression: reduce(SQ_INSTS_WMMA,sum)
     - name: SQ_VALU_WMMA_FLOP_FP32
       description: SGEMM flop, only report 1 per issue cycle, it stands for 128 Ops per SIMD32. 
         {emulated, windowed, deterministic}
