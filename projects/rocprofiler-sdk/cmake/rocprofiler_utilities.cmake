@@ -364,7 +364,10 @@ function(ROCPROFILER_ADD_NOLINK_INTERFACE_LIBRARY _TARGET _DESCRIPT)
     rocprofiler_add_interface_library(${_TARGET} "${_DESCRIPT}" ${ARGN})
     # this is a nolink target so it's include dirs, etc. should propagate to the headers
     # target
-    target_link_libraries(rocprofiler-sdk-headers INTERFACE $<BUILD_INTERFACE:${_TARGET}>)
+    # Internal no-link targets are unavailable to consumers of the build-tree export.
+    target_link_libraries(
+        rocprofiler-sdk-headers
+        INTERFACE $<BUILD_INTERFACE:$<$<TARGET_EXISTS:${_TARGET}>:${_TARGET}>>)
 endfunction()
 
 # -----------------------------------------------------------------------
