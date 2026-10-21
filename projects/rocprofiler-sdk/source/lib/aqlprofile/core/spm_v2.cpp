@@ -672,6 +672,8 @@ aqlprofile_spm_start(aqlprofile_handle_t            handle,
     if(!desc->num_xcc) desc->num_xcc = 1;
 
     buf_size /= desc->num_xcc;
+    if(buf_size < sizeof(kfd_ioctl_spm_buffer_header) + seg_size)
+        return HSA_STATUS_ERROR_INVALID_ARGUMENT;
     if(seg_size)
     {
         buf_size = (buf_size - sizeof(kfd_ioctl_spm_buffer_header)) / seg_size * seg_size +
