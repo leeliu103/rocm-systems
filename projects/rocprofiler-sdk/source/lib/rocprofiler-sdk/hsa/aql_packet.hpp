@@ -256,6 +256,8 @@ public:
     uint64_t               GetOwner() const { return owner; }
     void                   SetOwner(uint64_t value) { owner = value; }
 
+    rocprofiler_user_data_t shader_user_data{};
+
     void populate_before() override
     {
         before_krn_pkt.push_back(packets.start_packet);

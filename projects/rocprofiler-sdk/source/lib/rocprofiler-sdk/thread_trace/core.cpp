@@ -551,7 +551,7 @@ hsa::write_packet_t
 DispatchThreadTracer::pre_kernel_call(const hsa::Queue&              queue,
                                       rocprofiler_kernel_id_t        kernel_id,
                                       rocprofiler_dispatch_id_t      dispatch_id,
-                                      rocprofiler_user_data_t*       user_data,
+                                      rocprofiler_user_data_t* /*user_data*/,
                                       const context::correlation_id* corr_id)
 {
     rocprofiler_async_correlation_id_t rocprof_corr_id =
@@ -584,19 +584,21 @@ DispatchThreadTracer::pre_kernel_call(const hsa::Queue&              queue,
     if(auto ov = kernel_replay::local_context_override(parameters.context_id); ov && !*ov)
         return {nullptr, parameters.bSerialize};
 
+    rocprofiler_user_data_t shader_user_data{};
     auto control_flags = parameters.dispatch_cb_fn(queue.get_agent().get_rocp_agent()->id,
                                                    queue.get_id(),
                                                    rocprof_corr_id,
                                                    kernel_id,
                                                    dispatch_id,
                                                    parameters.callback_userdata.ptr,
-                                                   user_data);
+                                                   &shader_user_data);
 
     if(control_flags == ROCPROFILER_THREAD_TRACE_CONTROL_NONE)
         return {nullptr, parameters.bSerialize};
 
     auto packet = agent.get_start_packet();
     if(!packet) return {nullptr, parameters.bSerialize};
+    packet->shader_user_data = shader_user_data;
     packet->SetOwner(tracer_id);
     post_move_data.fetch_add(1);
     packet->populate_before();
@@ -607,7 +609,7 @@ DispatchThreadTracer::pre_kernel_call(const hsa::Queue&              queue,
 void
 DispatchThreadTracer::post_kernel_call(DispatchThreadTracer::inst_pkt_t& aql,
                                        const hsa::queue_info_session_t& /*session*/,
-                                       const hsa::packet_data_t& packet_data)
+                                       const hsa::packet_data_t& /*packet_data*/)
 {
     if(post_move_data.load() < 1) return;
 
@@ -626,7 +628,7 @@ DispatchThreadTracer::post_kernel_call(DispatchThreadTracer::inst_pkt_t& aql,
 
         auto it = agents.find(pkt->GetAgent());
         if(it != agents.end() && it->second != nullptr)
-            it->second->iterate_data(pkt->GetHandle(), packet_data.user_data);
+            it->second->iterate_data(pkt->GetHandle(), pkt->shader_user_data);
     }
 }
 
