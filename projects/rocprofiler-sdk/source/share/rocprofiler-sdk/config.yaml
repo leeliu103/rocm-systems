@@ -14004,7 +14004,7 @@ rocprofiler-sdk:
             - gfx12
             - gfx1200
             - gfx1201
-          expression: (1-(reduce(TCP_REQ_MISS,sum)/reduce(TCP_REQ,sum)))*100
+          expression: 100*(reduce(TCP_REQ,sum)-reduce(TCP_REQ_MISS,sum))/reduce(TCP_REQ,sum)
     - name: CPC_GCRIU_BUSY
       description: ''
       properties: []
