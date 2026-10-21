@@ -874,7 +874,8 @@ EvaluateAST::evaluate(
         auto* r1 = _children.at(0).evaluate(results_map, cache);
         auto* r2 = _children.at(1).evaluate(results_map, cache);
 
-        if(r1->size() < r2->size()) swap(r1, r2);
+        const bool swapped = r1->size() < r2->size();
+        if(swapped) swap(r1, r2);
 
         CHECK(!r1->empty() && !r2->empty());
 
@@ -885,7 +886,10 @@ EvaluateAST::evaluate(
             // or some other type of constant op.
             for(auto& val : *r1)
             {
-                val = op(val, *r2->begin());
+                auto result        = swapped ? op(*r2->begin(), val) : op(val, *r2->begin());
+                result.id          = val.id;
+                result.dispatch_id = val.dispatch_id;
+                val                = result;
             }
         }
         else if(r2->size() == r1->size())
