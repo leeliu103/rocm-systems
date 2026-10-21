@@ -789,22 +789,25 @@ EvaluateAST::read_pkt(const aql::CounterPacketConstruct* pkt_gen, hsa::AQLPacket
         [](aqlprofile_pmc_event_t event, uint64_t counter_id, uint64_t counter_value, void* data) {
             CHECK(data);
             auto&       it     = *static_cast<it_data*>(data);
-            const auto* metric = it.pkt_gen->event_to_metric(event);
+            const auto* metrics = it.pkt_gen->event_to_metrics(event);
 
-            if(!metric) return HSA_STATUS_SUCCESS;
+            if(!metrics) return HSA_STATUS_SUCCESS;
 
-            auto& vec = it.data->emplace(metric->id(), std::vector<rocprofiler_counter_record_t>{})
-                            .first->second;
-            auto& next_rec = vec.emplace_back();
-            set_counter_in_rec(next_rec.id, {.handle = metric->id()});
-            // Actual dimension info needs to be used here in the future
-            auto aql_status = aql::set_dim_id_from_sample(next_rec.id, it.agent, event, counter_id);
-            CHECK_EQ(aql_status, ROCPROFILER_STATUS_SUCCESS)
-                << rocprofiler_get_status_string(aql_status);
+            for(const auto& metric : *metrics)
+            {
+                auto& vec = it.data->emplace(metric.id(), std::vector<rocprofiler_counter_record_t>{})
+                                .first->second;
+                auto& next_rec = vec.emplace_back();
+                set_counter_in_rec(next_rec.id, {.handle = metric.id()});
+                // Actual dimension info needs to be used here in the future
+                auto aql_status = aql::set_dim_id_from_sample(next_rec.id, it.agent, event, counter_id);
+                CHECK_EQ(aql_status, ROCPROFILER_STATUS_SUCCESS)
+                    << rocprofiler_get_status_string(aql_status);
 
-            // set_dim_in_rec(next_rec.id, ROCPROFILER_DIMENSION_NONE, vec.size() - 1);
-            // Note: in the near future we need to use hw_counter here instead
-            next_rec.counter_value = counter_value;
+                // set_dim_in_rec(next_rec.id, ROCPROFILER_DIMENSION_NONE, vec.size() - 1);
+                // Note: in the near future we need to use hw_counter here instead
+                next_rec.counter_value = counter_value;
+            }
             return HSA_STATUS_SUCCESS;
         },
         &aql_data);
