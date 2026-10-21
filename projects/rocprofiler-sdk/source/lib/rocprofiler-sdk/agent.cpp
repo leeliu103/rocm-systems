@@ -431,7 +431,7 @@ get_bdf_info(const rocprofiler_agent_t* agent)
 // Returns true on success, false if any step fails (caller should fall back to V1).
 //
 // V2 is gated to GFX11+ because the cu_bitmap is only consumed by the SQ-counter
-// WGP iteration path in source/lib/aqlprofile/pm4/pmc_builder.h (bIsWGPcounter11);
+// WGP iteration path in source/lib/aqlprofile/pm4/pmc_builder.h (bUseWGPBitmap);
 // on GFX9 (MI100/200/300) and GFX10 the bitmap is unused, and a per-process
 // drmOpenRender + amdgpu_device_initialize on the shared /dev/dri/renderD* node
 // serializes on the kernel DRM mutex, inflating CI runtime under parallel loads.
