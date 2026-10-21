@@ -2111,8 +2111,9 @@ rocprofiler-sdk:
             - gfx90a
           expression: 100*TCC_TAG_STALL_sum/TCC_BUSY_sum
     - name: LDSBankConflict
-      description: 'The percentage of GPUTime LDS is stalled by bank conflicts. Value range: 0% (optimal)
-        to 100% (bad).'
+      description: 'For gfx10/gfx11/gfx12, bank-conflict cycles as a percentage of indexed LDS active
+        cycles. For gfx9, the percentage of GPU time LDS is stalled by bank conflicts.
+        Value range: 0% (optimal) to 100% (bad).'
       properties: []
       definitions:
         - architectures:
