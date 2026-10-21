@@ -43,6 +43,9 @@ public:
         Init(agent_info);
     }
     bool     IsGFX12() const override { return true; }
+    int      GetAccumLowID() const override { return 1; }
+    int      GetAccumHiID() const override { return 1; }
+    int      GetSQGAccumID() const override { return 13; }
     uint32_t EncodeSpmBlockIndex(uint32_t inst_index,
                                  uint32_t sa_index,
                                  uint32_t wgp_index) const override
