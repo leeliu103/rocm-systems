@@ -74,7 +74,6 @@ CounterMemoryManager::CopyEvents(const aqlprofile_pmc_event_t* _events, size_t c
 
     std::stable_sort(events.begin(), events.end());
 
-    std::vector<EventRequest> acc_requests;
     for(auto it = events.begin(); it != events.end(); it++)
     {
         bool IsSq  = it->block_name == HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ;
@@ -91,11 +90,8 @@ CounterMemoryManager::CopyEvents(const aqlprofile_pmc_event_t* _events, size_t c
         EventRequest req = *it;
         req.bInternal    = true;
         req.flags.raw    = 0;
-        acc_requests.push_back(req);
+        // Keep each level immediately before its accumulator, including repeated modes.
+        it = events.insert(it, req);
+        ++it;
     }
-
-    if(!acc_requests.size()) return;
-
-    events.insert(events.end(), acc_requests.begin(), acc_requests.end());
-    std::sort(events.begin(), events.end());
 }
