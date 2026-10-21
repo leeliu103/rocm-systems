@@ -143,13 +143,26 @@ CountersVec(std::vector<EventRequest>& events, Pm4Factory* pm4_factory)
 {
     pm4_builder::counters_vector                  vec;
     std::map<block_des_t, uint32_t, lt_block_des> index_map;
+    std::map<std::pair<uint32_t, uint32_t>, uint32_t> broadcast_slots;
 
     int num_sp_events = 0;
     for(auto& event : events)
         num_sp_events += int(event.block_name) == AQLPROFILE_BLOCK_NAME_SP;
 
     for(auto& event : events)
+    {
         vec.push_back(GetCounter(pm4_factory, event, index_map, num_sp_events));
+        const auto& counter = vec.back();
+        if(pm4_factory->GetGpuId() == aql_profile::GFX12_GPU_ID &&
+           (counter.block_info->attr & CounterBlockWgpAttr) &&
+           counter.block_info->instance_count > 1)
+        {
+            // START broadcasts each slot's selector to every local WGP instance.
+            const auto [it, inserted] = broadcast_slots.emplace(
+                std::make_pair(counter.block_des.id, counter.index), counter.id);
+            if(!inserted && it->second != counter.id) throw HSA_STATUS_ERROR_INVALID_ARGUMENT;
+        }
+    }
 
     if(pm4_factory->IsGFX10() && (vec.get_attr() & CounterBlockGRBMAttr) == 0)
     {
