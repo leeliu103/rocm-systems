@@ -46,3 +46,16 @@ typedef struct SpmBufferDesc_
 
 static constexpr size_t SPM_COUNTER_MAP_CAPACITY =
     (SPM_DESC_SIZE - sizeof(SpmBufferDesc)) / sizeof(uint16_t);
+
+namespace aqlprofile
+{
+namespace spm
+{
+// Checks the events against the SPM counter allocation used to build the packets.
+// Returns HSA_STATUS_ERROR_OUT_OF_RESOURCES when they do not fit.
+hsa_status_t
+ValidateCounters(aqlprofile_agent_handle_t     agent,
+                 const aqlprofile_pmc_event_t* events,
+                 size_t                        num_events);
+}  // namespace spm
+}  // namespace aqlprofile

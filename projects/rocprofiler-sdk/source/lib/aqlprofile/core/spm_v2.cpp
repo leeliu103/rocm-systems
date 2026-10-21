@@ -432,6 +432,31 @@ CountersVec(const aqlprofile_pmc_event_t* events,
     return vec;
 }
 
+hsa_status_t
+ValidateCounters(aqlprofile_agent_handle_t     agent,
+                 const aqlprofile_pmc_event_t* events,
+                 size_t                        num_events)
+{
+    try
+    {
+        auto* pm4_factory = aql_profile::Pm4Factory::Create(agent);
+        if(!pm4_factory) return HSA_STATUS_ERROR_INVALID_AGENT;
+        if(CountersVec(events, num_events, pm4_factory).size() > SPM_COUNTER_MAP_CAPACITY)
+            return HSA_STATUS_ERROR_OUT_OF_RESOURCES;
+    } catch(hsa_status_t status)
+    {
+        return status;
+    } catch(const std::runtime_error&)
+    {
+        // AllocateCounter: the block has no SPM counter left for the event
+        return HSA_STATUS_ERROR_OUT_OF_RESOURCES;
+    } catch(...)
+    {
+        return HSA_STATUS_ERROR;
+    }
+    return HSA_STATUS_SUCCESS;
+}
+
 class SpmStateMap
 {
 public:
