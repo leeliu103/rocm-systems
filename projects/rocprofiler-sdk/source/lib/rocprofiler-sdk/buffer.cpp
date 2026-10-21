@@ -346,9 +346,14 @@ rocprofiler_destroy_buffer(rocprofiler_buffer_id_t buffer_id)
     if(!buff) return ROCPROFILER_STATUS_ERROR_BUFFER_NOT_FOUND;
 
     // buffer is currently being flushed or destroyed
-    for(auto& itr : buff->syncer)
+    for(auto itr = buff->syncer.begin(); itr != buff->syncer.end(); ++itr)
     {
-        if(itr.test_and_set()) return ROCPROFILER_STATUS_ERROR_BUFFER_BUSY;
+        if(itr->test_and_set())
+        {
+            for(auto acquired = buff->syncer.begin(); acquired != itr; ++acquired)
+                acquired->clear();
+            return ROCPROFILER_STATUS_ERROR_BUFFER_BUSY;
+        }
     }
 
     for(auto& itr : buff->buffers)
