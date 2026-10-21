@@ -132,7 +132,7 @@ GetCounter(Pm4Factory*                                    pm4_factory,
     }
 
     if(reg_index >= block_info->counter_count)
-        throw std::runtime_error("Event is out of block counter registers number limit");
+        throw HSA_STATUS_ERROR_OUT_OF_RESOURCES;
 
     ret.first->second++;
     return {visible_id, reg_index, block_des, block_info};

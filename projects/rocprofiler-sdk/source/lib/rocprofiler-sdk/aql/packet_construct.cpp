@@ -27,6 +27,7 @@
 #include "lib/rocprofiler-sdk/spm/decode.hpp"
 
 #if defined(ROCPROFILER_BUILD_AQLPROFILE) && ROCPROFILER_BUILD_AQLPROFILE
+#    include "lib/aqlprofile/core/memorymanager.hpp"
 #    include "lib/aqlprofile/core/pm4_factory.h"
 #    include "lib/aqlprofile/core/spm_common.hpp"
 #endif
@@ -272,6 +273,26 @@ CounterPacketConstruct::get_counter_events(const counters::Metric& metric) const
 rocprofiler_status_t
 CounterPacketConstruct::can_collect()
 {
+#if defined(ROCPROFILER_BUILD_AQLPROFILE) && ROCPROFILER_BUILD_AQLPROFILE
+    try
+    {
+        const auto* agent = CHECK_NOTNULL(rocprofiler::agent::get_aql_agent(_agent));
+        CounterMemoryManager planner(*agent, nullptr, nullptr, nullptr);
+        planner.CopyEvents(_events.data(), _events.size());
+        aql_profile_v2::CountersVec(planner.GetEvents(), aql_profile::Pm4Factory::Create(*agent));
+        return ROCPROFILER_STATUS_SUCCESS;
+    } catch(hsa_status_t status)
+    {
+        if(status == HSA_STATUS_ERROR_OUT_OF_RESOURCES)
+            return ROCPROFILER_STATUS_ERROR_EXCEEDS_HW_LIMIT;
+        return status == HSA_STATUS_ERROR_INVALID_ARGUMENT
+                   ? ROCPROFILER_STATUS_ERROR_INVALID_ARGUMENT
+                   : ROCPROFILER_STATUS_ERROR;
+    } catch(...)
+    {
+        return ROCPROFILER_STATUS_ERROR;
+    }
+#else
     // Verify that the counters fit within harrdware limits
     std::map<std::pair<hsa_ven_amd_aqlprofile_block_name_t, uint32_t>, int64_t> counter_count;
     std::map<std::pair<hsa_ven_amd_aqlprofile_block_name_t, uint32_t>, int64_t> max_allowed;
@@ -295,6 +316,7 @@ CounterPacketConstruct::can_collect()
         }
     }
     return ROCPROFILER_STATUS_SUCCESS;
+#endif
 }
 
 /** @brief Constructs the packet using the contained input parameters.

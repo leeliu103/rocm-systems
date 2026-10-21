@@ -84,6 +84,22 @@ struct EventRequest : public aqlprofile_pmc_event_t
     }
 };
 
+namespace aql_profile
+{
+class Pm4Factory;
+}
+
+namespace pm4_builder
+{
+class counters_vector;
+}
+
+namespace aql_profile_v2
+{
+pm4_builder::counters_vector
+CountersVec(std::vector<EventRequest>& events, aql_profile::Pm4Factory* pm4_factory);
+}
+
 struct MemoryDeleter
 {
     aqlprofile_memory_dealloc_callback_t free_fn;
