@@ -26,6 +26,10 @@
 #include "lib/rocprofiler-sdk/kfd/resource.hpp"
 #include "lib/rocprofiler-sdk/spm/decode.hpp"
 
+#if defined(ROCPROFILER_BUILD_AQLPROFILE) && ROCPROFILER_BUILD_AQLPROFILE
+#    include "lib/aqlprofile/core/spm_common.hpp"
+#endif
+
 #include <fmt/format.h>
 #include <hsa/hsa_ext_amd.h>
 
@@ -33,12 +37,6 @@ namespace rocprofiler
 {
 namespace aql
 {
-struct AQLProfileMetric
-{
-    counters::Metric                    metric;
-    std::vector<aqlprofile_pmc_event_t> events;
-};
-
 CounterPacketConstruct::CounterPacketConstruct(rocprofiler_agent_id_t               agent,
                                                const std::vector<counters::Metric>& metrics)
 : _agent(agent)
@@ -387,60 +385,40 @@ spm_construct_packet(const rocprofiler_agent_id_t                     agent_id,
     return pkt;
 }
 
-// Following the PMC check for now
-// ToDO: change this to SPM
 rocprofiler_status_t
 spm_can_collect(const rocprofiler_agent_id_t agent_id, const std::vector<counters::Metric>& metrics)
 {
-    // Verify that the counters fit within harrdware limits
-    auto counter_count =
-        std::map<std::pair<hsa_ven_amd_aqlprofile_block_name_t, uint32_t>, int64_t>{};
-    auto max_allowed =
-        std::map<std::pair<hsa_ven_amd_aqlprofile_block_name_t, uint32_t>, int64_t>{};
-    auto _metrics = std::vector<AQLProfileMetric>{};
-
+#if defined(ROCPROFILER_BUILD_AQLPROFILE) && ROCPROFILER_BUILD_AQLPROFILE
+    auto events = std::vector<aqlprofile_pmc_event_t>{};
     for(const auto& metric : metrics)
     {
-        auto query_info                = get_query_info(agent_id, metric);
-        _metrics.emplace_back().metric = metric;
-        uint64_t event_id              = 0;
-        if(!metric.event().empty())
-            event_id =
-                static_cast<uint32_t>(std::stoul(metric.event().c_str(), nullptr) & 0xFFFFFFFF);
+        auto     query_info = get_query_info(agent_id, metric);
+        uint64_t event_id   = 0;
+        if(!metric.event().empty()) event_id = std::stoul(metric.event(), nullptr);
 
         for(unsigned block_index = 0; block_index < query_info.instance_count; ++block_index)
         {
-            _metrics.back().events.push_back(
+            events.push_back(
                 {.block_index = block_index,
-                 .event_id    = static_cast<uint32_t>(event_id),
+                 .event_id    = static_cast<uint32_t>(event_id & 0xFFFFFFFF),
                  .flags       = aqlprofile_pmc_event_flags_t{metric.flags()},
                  .block_name  = static_cast<hsa_ven_amd_aqlprofile_block_name_t>(query_info.id)});
         }
     }
 
-    for(auto& metric : _metrics)
+    // SPM capacity depends on counter depth and per-SA/WGP expansion, not the PMC register count
+    const auto* aql_agent = CHECK_NOTNULL(rocprofiler::agent::get_aql_agent(agent_id));
+    switch(::aqlprofile::spm::ValidateCounters(*aql_agent, events.data(), events.size()))
     {
-        for(auto& instance : metric.events)
-        {
-            auto block_pair       = std::make_pair(instance.block_name, instance.block_index);
-            auto [iter, inserted] = counter_count.emplace(block_pair, 0);
-            iter->second++;
-            if(inserted)
-            {
-                max_allowed.emplace(block_pair, get_block_counters(agent_id, instance));
-            }
-        }
+        case HSA_STATUS_SUCCESS: return ROCPROFILER_STATUS_SUCCESS;
+        case HSA_STATUS_ERROR_OUT_OF_RESOURCES: return ROCPROFILER_STATUS_ERROR_EXCEEDS_HW_LIMIT;
+        default: return ROCPROFILER_STATUS_ERROR_INVALID_ARGUMENT;
     }
-
-    // Check if the block count > max count
-    for(auto& [block_name, count] : counter_count)
-    {
-        if(auto* max = CHECK_NOTNULL(common::get_val(max_allowed, block_name)); count > *max)
-        {
-            return ROCPROFILER_STATUS_ERROR_EXCEEDS_HW_LIMIT;
-        }
-    }
-    return ROCPROFILER_STATUS_SUCCESS;
+#else
+    (void) agent_id;
+    (void) metrics;
+    return ROCPROFILER_STATUS_ERROR_INCOMPATIBLE_ABI;
+#endif
 }
 
 }  // namespace aql
