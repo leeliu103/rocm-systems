@@ -895,6 +895,12 @@ public:
                             grbm_value = Primitives::grbm_inst_index_value(
                                 GetInstanceIndex(block_des.index, block_info));
                         }
+                        else if(Primitives::GFXIP_LEVEL == 12 &&
+                                (block_info->attr & CounterBlockSaAttr))
+                        {
+                            // Single-instance per-SA block (GL1A): read the SA being iterated
+                            grbm_value = Primitives::grbm_se_sh_index_value(se_index, sarray);
+                        }
                         else if(block_info->attr & CounterBlockSeAttr)
                         {
                             grbm_value = Primitives::grbm_se_index_value(se_index);
