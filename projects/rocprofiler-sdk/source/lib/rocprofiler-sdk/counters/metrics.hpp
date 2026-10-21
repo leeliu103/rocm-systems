@@ -70,6 +70,9 @@ public:
     uint32_t           flags() const { return flags_; }
     bool               empty() const { return empty_; }
 
+    // Distinguish accumulation modes internally without changing public counter IDs.
+    uint64_t result_key() const { return id() | (static_cast<uint64_t>(flags_) << 32); }
+
     void setflags(uint32_t flags) { this->flags_ = flags; }
     void set_id(uint64_t id) { this->id_ = id; }
 

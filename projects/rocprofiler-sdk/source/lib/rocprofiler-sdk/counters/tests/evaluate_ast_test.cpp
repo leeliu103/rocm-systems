@@ -599,11 +599,22 @@ TEST(evaulate_ast, evaulate_hybrid_counters)
         ASSERT_TRUE(eval_counters);
         ASSERT_EQ(eval_counters->size(), eval_count);
         ASSERT_EQ(eval_counters->begin()->flags(), flag);
+        base_counter_decode[eval_counters->begin()->result_key()] = expected;
         std::vector<std::unique_ptr<std::vector<rocprofiler_record_counter_t>>> cache;
         asts.at("gfx9").at(name).expand_derived(asts.at("gfx9"));
         auto ret = asts.at("gfx9").at(name).evaluate(base_counter_decode, cache);
         EXPECT_EQ(ret->size(), expected.size());
     }
+
+    // Raw and accumulated samples of the same counter must not be mixed
+    auto accum_counters =
+        rocprofiler::counters::get_required_hardware_counters(asts, "gfx9", metrics["TORRANCE"]);
+    ASSERT_TRUE(accum_counters);
+    base_counter_decode[accum_counters->begin()->result_key()] =
+        construct_test_data_dim(get_base_rec_id(2), {ROCPROFILER_DIMENSION_NONE}, 4);
+    std::vector<std::unique_ptr<std::vector<rocprofiler_record_counter_t>>> cache;
+    EXPECT_EQ(asts.at("gfx9").at("MYERS").evaluate(base_counter_decode, cache)->size(), 8);
+    EXPECT_EQ(asts.at("gfx9").at("TORRANCE").evaluate(base_counter_decode, cache)->size(), 4);
 }
 
 namespace
