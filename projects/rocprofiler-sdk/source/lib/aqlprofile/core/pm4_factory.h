@@ -206,8 +206,10 @@ public:
     {
         const GpuBlockInfo* info = block_map_.Get(event->block_name);
         if(info == nullptr) throw std::runtime_error("Bad Block");
-        // Checking that the block index is in proper range
-        if(DecodeSpmInstanceIndex(info, event->block_index) >= info->instance_count)
+        // gfx1200/1201 PMC indices are local channels, not packed SPM coordinates.
+        if((gpu_id_ == GFX12_GPU_ID ? event->block_index
+                                   : DecodeSpmInstanceIndex(info, event->block_index)) >=
+           info->instance_count)
             throw std::runtime_error("Bad Index");
         if(!IsEventInRange(*info, event->event_id))
             throw std::runtime_error("Bad event ID");
@@ -219,8 +221,9 @@ public:
     {
         const GpuBlockInfo* info = block_map_.Get(event->block_name);
         if(info == nullptr) throw event_exception(std::string("Bad block, "), *event);
-        // Checking that the block index is in proper range
-        if(DecodeSpmInstanceIndex(info, event->block_index) >= info->instance_count)
+        if((gpu_id_ == GFX12_GPU_ID ? event->block_index
+                                   : DecodeSpmInstanceIndex(info, event->block_index)) >=
+           info->instance_count)
             throw event_exception(std::string("Bad block index, "), *event);
         if(!IsEventInRange(*info, event->counter_id))
             throw event_exception(std::string("Bad event ID, "), *event);
