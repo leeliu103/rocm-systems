@@ -279,3 +279,7 @@ Roofline micro-benchmark support varies by :ref:`SoC family <def-soc>` independe
      - ❌
      - ❌
      - —
+   * - AMD Radeon RX 9070 Series / Radeon AI PRO R9700 (RDNA4, gfx1201)
+     - ✅
+     - ❌
+     - Counter profiling and analysis use the RDNA panel layout. VALU throughput is reported as instructions rather than FLOPs. GCEA analysis is not available.

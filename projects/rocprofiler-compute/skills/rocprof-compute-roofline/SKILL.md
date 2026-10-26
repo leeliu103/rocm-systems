@@ -25,10 +25,10 @@ Collecting it runs microbenchmarks in addition to profiling the application,
 which takes extra time. `--no-roof` skips them when the user only wants
 counters.
 
-MI100 (gfx908) does not support the roofline microbenchmarks. Every other
-supported architecture does. On MI100 the benchmark is skipped and the profile
-still succeeds, so a missing roofline there is not a mistake in how the profile
-was run. Never tell an MI100 user to re-profile without `--no-roof`; use
+MI100 (gfx908) and RDNA4 gfx1201 do not support roofline in this tool. The
+benchmark is skipped and counter profiling still succeeds, so a missing
+roofline there is not a mistake in how the profile was run. Do not tell users
+of these architectures to re-profile without `--no-roof`; use
 Speed-of-Light and the `rocprof-compute-memory` skill instead. Confirm support
 for a new architecture against
 [compatible-accelerators.rst](../../docs/reference/compatible-accelerators.rst).

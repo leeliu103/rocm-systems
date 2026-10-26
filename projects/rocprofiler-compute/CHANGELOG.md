@@ -7,6 +7,8 @@ Full documentation for ROCm Compute Profiler is available at [https://rocm.docs.
 
 ### Added
 
+* Added gfx1201 counter profiling and analysis using the RDNA panel layout, with architecture-specific counter definitions. Roofline and GCEA analysis are not available.
+
 * Added the `LDS Utilization` metric to the gfx115x Memory Chart.
 
 * Added two wave utilization metrics to PC sampling analysis.

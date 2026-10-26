@@ -1002,7 +1002,8 @@ add_test(
     NAME test_soc_base
     COMMAND
         ${PYTHON_TEST_COMMAND} -m pytest --junitxml=tests/test_soc_base.xml ${COV_OPTION}
-        tests/unit/rocprof_compute_soc/test_soc_base.py ${WORKING_DIR_OPTION}
+        tests/unit/rocprof_compute_soc/test_soc_base.py
+        tests/unit/rocprof_compute_soc/test_soc_gfx1201.py ${WORKING_DIR_OPTION}
 )
 
 # -----------------------------------

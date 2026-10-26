@@ -76,6 +76,11 @@ architectures:
   gfx950:
     same_bucket_priority_metric_ids: {}
 
+  gfx1201:
+    same_bucket_priority_metric_ids:
+      "17.1.0":
+        name: "GPU Busy"
+
   # gfx1250: 17 perfmon passes at full counter set. Priority metrics steer
   # metric-aware coalescing without increasing pass count (verified via
   # soc_base._allocate_perfmon_counter_files simulation).

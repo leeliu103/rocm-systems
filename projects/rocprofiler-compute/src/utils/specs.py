@@ -52,12 +52,14 @@ VERSION_LOC: list[str] = [
 def spec_family_for_arch(gpu_arch: Optional[str]) -> type[MachineSpecs]:
     """Return the MachineSpecs subclass for a GPU arch (by series).
 
-    The "RDNA3.5" series maps to RDNA 3.5; everything else (mi100, mi200,
-    mi300, etc.) maps to CDNA.
+    The RDNA3.5 and RDNA4 series use their respective RDNA specs;
+    everything else (mi100, mi200, mi300, etc.) maps to CDNA.
     """
     series = mi_gpu_specs.get_gpu_series(gpu_arch) if gpu_arch else None
     if series and series.upper() == "RDNA3.5":
         return MachineSpecsRDNA35
+    if series and series.upper() == "RDNA4":
+        return MachineSpecsRDNA4
     return MachineSpecsCDNA
 
 
@@ -427,7 +429,7 @@ def _extract_gpu_info(gpu_arch: Optional[str]) -> dict[str, Any]:
         result["num_compute_units"] = amdsmi_interface.get_gpu_num_compute_units()
         result["gpu_cache_info"] = amdsmi_interface.get_gpu_cache_info() or {}
         result["vram_bit_width"] = amdsmi_interface.get_gpu_vram_bit_width()
-        if spec_family_for_arch(gpu_arch) is MachineSpecsRDNA35:
+        if issubclass(spec_family_for_arch(gpu_arch), MachineSpecsRDNA35):
             result["perf_level"] = amdsmi_interface.get_gpu_perf_level()
 
     if is_partition_supported:
@@ -860,7 +862,7 @@ class MachineSpecs:
     num_memory_channels: Optional[str] = field(
         default=None,
         metadata={
-            "doc": "Number of memory channels (HBM for CDNA, LPDDR for RDNA 3.5)",
+            "doc": "Number of memory channels (HBM, LPDDR, or GDDR)",
             "name": "Memory Channels",
             "show_in_table": True,
         },
@@ -1088,6 +1090,29 @@ class MachineSpecsRDNA35(MachineSpecs):
             self.num_memory_channels = str(int(bit_width) // 32)
         else:
             self.num_memory_channels = self.total_l2_chan
+
+
+@_kw_only
+@dataclass(repr=False)
+class MachineSpecsRDNA4(MachineSpecsRDNA35):
+    """RDNA 4 specs with per-shader-array GL1C interfaces and GDDR channels."""
+
+    num_gl1c: Optional[str] = field(
+        default=None,
+        metadata={
+            "doc": (
+                "The number of GL1C interfaces (one per Shader Array) on the GPU. "
+                "RDNA 4 has no GL1 cache."
+            ),
+            "name": "Num GL1C Interfaces",
+            "show_in_table": True,
+        },
+    )
+
+    def finalize_soc_fields(self, gpu_info: dict[str, Any]) -> None:
+        super().finalize_soc_fields(gpu_info)
+        if not gpu_info.get("vram_bit_width"):
+            self.num_memory_channels = None
 
 
 if __name__ == "__main__":
