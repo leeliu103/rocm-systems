@@ -55,6 +55,11 @@ def is_gfx115x(gpu_arch: Optional[str]) -> bool:
     return bool(gpu_arch and gpu_arch.startswith("gfx115"))
 
 
+def is_gfx1201(gpu_arch: Optional[str]) -> bool:
+    """Return True if gpu_arch is a gfx1201 (RDNA 4) architecture."""
+    return gpu_arch == "gfx1201"
+
+
 def is_gfx1250(gpu_arch: Optional[str]) -> bool:
     """Return True if gpu_arch is a gfx1250 architecture."""
     return gpu_arch == "gfx1250"

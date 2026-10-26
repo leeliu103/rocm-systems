@@ -1,13 +1,14 @@
 # Copyright (c) Advanced Micro Devices, Inc.
 # SPDX-License-Identifier:  MIT
 
-"""RDNA3.5 memory chart renderer.
+"""RDNA 3.5 and RDNA 4 memory chart renderer.
 
 Hierarchy (GCEA = Graphics Core Efficiency Arbiter):
   Kernel -> GL0 (TCP) / SQC -> GL1 -> GL2 -> GCEA -> System Memory
          -> LDS (on-CU, no GL1 connection)
 
 Metric keys must match ``gfx115x/0300_memory_chart.yaml``.
+gfx1201 uses GL1C as an interface and reports GDDR6 device memory.
 """
 
 from typing import Any, Optional, Union
@@ -27,6 +28,7 @@ from utils.mem_chart_common import (
     build_legend,
     colored,
     format_edge,
+    format_scientific,
     format_value,
     make_arrows,
     mem_chart_cli_main,
@@ -92,6 +94,15 @@ MEM_CHART_PANEL_METRIC_KEYS: tuple[str, ...] = tuple(
 
 DEFAULT_SAMPLE_METRICS: dict[str, Union[int, float]] = dict(_MEM_CHART_DEFAULT_ROWS)
 
+_GFX1201_METRICS = {
+    "icache_gl1_req": "ICache-GL1 Request Rate",
+    "dcache_gl1_req": "DCache-GL1 Request Rate",
+    "tcp_req_rate": "GL0 Request Rate (TCP Cache)",
+    "tcp_gl1_write_req": "TCP-GL1 Write Request Rate",
+    "lds_idx_cycles": "LDS Indexed-active Cycles",
+    "lds_conflict_cycles": "LDS Bank Conflict Cycles",
+}
+
 _EDGE_LABEL_W = 11  # fits longest kernel-edge label ("ICache Read")
 
 # Panel dimensions
@@ -116,7 +127,19 @@ _CONSOLE_WIDTH = 200  # RDNA3.5 narrower than CDNA's 240
 
 def normalize_mem_chart_metrics(metric_dict: dict[str, Any]) -> dict[str, Any]:
     """Flat map of YAML metric names in panel order; unknown keys dropped."""
-    return {k: metric_dict.get(k) for k in MEM_CHART_PANEL_METRIC_KEYS}
+    metrics = {k: metric_dict.get(k) for k in MEM_CHART_PANEL_METRIC_KEYS}
+    for chart_key, metric_key in {
+        "LDS Req": "LDS Instructions",
+        "LDS Bank Conflict Rate": "LDS Bank Conflict Cycle Ratio",
+        "GL1 Cache Utilization": "GL1C Interface Busy",
+        "GL1 Cache Stall GL2 Backpressure": "GL1C Request Credit Stall",
+    }.items():
+        if metric_key in metric_dict:
+            metrics[chart_key] = metric_dict[metric_key]
+    metrics.update({
+        key: metric_dict[key] for key in _GFX1201_METRICS.values() if key in metric_dict
+    })
+    return metrics
 
 
 def get_sample_metrics() -> dict[str, Any]:
@@ -139,11 +162,13 @@ def _scope_bar_section(label: str, span: int) -> str:
     return "|" + "-" * left + markup_label + "-" * (remaining - left)
 
 
-def _scope_bar(gpu_span: int, sysmem_span: int) -> str:
+def _scope_bar(
+    gpu_span: int, sysmem_span: int, memory_label: str = "System Memory"
+) -> str:
     """Horizontal scope rule sized from the assembled layout."""
     return (
         _scope_bar_section("GPU", gpu_span)
-        + _scope_bar_section("System Memory", sysmem_span - 1)
+        + _scope_bar_section(memory_label, sysmem_span - 1)
         + "|"
     )
 
@@ -197,6 +222,11 @@ def _extract_metrics(metric_dict: dict[str, Any]) -> dict[str, Any]:
     metrics["total_bw"] = safe_float_sum(
         metrics["dram_read_bw"], metrics["dram_write_bw"]
     )
+    metrics.update({
+        key: metric_dict[name]
+        for key, name in _GFX1201_METRICS.items()
+        if name in metric_dict
+    })
 
     return metrics
 
@@ -205,6 +235,7 @@ def _build_kernel_and_l0(
     metrics: dict[str, Any],
     kernel_arrows: dict[str, str],
     std_arrows: dict[str, str],
+    gpu_arch: Optional[str] = None,
 ) -> tuple[Panel, Text, Group, Text]:
     """Kernel panel, kernel edges, L0 stack, and GL1 edges."""
 
@@ -217,8 +248,9 @@ def _build_kernel_and_l0(
     kernel_arrow_right = kernel_arrows["right"]
 
     # LDS edge: instruction count only (not data movement)
+    lds_label = "Instructions" if gpu_arch == "gfx1201" else "Request"
     lds_edge_zone = [
-        "     [white]Request[/white]",
+        f"     [white]{lds_label}[/white]",
         format_edge("LDS", metrics["lds_req"], _EDGE_LABEL_W),
         kernel_arrows["plain"],
     ]
@@ -265,8 +297,16 @@ def _build_kernel_and_l0(
         if metrics["lds_bw"] is not None
         else ""
     )
+    if gpu_arch == "gfx1201":
+        lds_util_line = "Indexed cycles\n" + colored(
+            format_scientific(metrics.get("lds_idx_cycles")), COLORS["util"]
+        )
+        lds_bw_line = "Conflict cycles\n" + colored(
+            format_scientific(metrics.get("lds_conflict_cycles")), COLORS["stall"]
+        )
+    conflict_label = "Cycle ratio" if gpu_arch == "gfx1201" else "Bank Conflict"
     lds_conflict_line = (
-        metric_line("Bank Conflict", metrics["lds_bank_conflict"], "%", COLORS["stall"])
+        metric_line(conflict_label, metrics["lds_bank_conflict"], "%", COLORS["stall"])
         if metrics["lds_bank_conflict"] is not None
         else ""
     )
@@ -283,6 +323,10 @@ def _build_kernel_and_l0(
         if metrics["tcp_bw"] is not None
         else ""
     )
+    if gpu_arch == "gfx1201":
+        tcp_bw_line = "Req/s " + colored(
+            format_scientific(metrics.get("tcp_req_rate")), COLORS["bw"]
+        )
     tcp_panel = build_ip_block(
         "GL0 (TCP Cache)",
         _L0_PANEL_W,
@@ -311,6 +355,18 @@ def _build_kernel_and_l0(
     l0_stack = Group(lds_panel, tcp_panel, sqc_panel)
 
     # GL1 edges: TCP and SQC connect; LDS does NOT
+    write_label = "Write BW"
+    write_value = format_value(metrics["tcp_gl1_write_bw"], "Bytes/s", 1)
+    sqc_label = "Read BW"
+    sqc_value = format_value(metrics["sqc_gl1_read_bw"], "Bytes/s", 1)
+    if gpu_arch == "gfx1201":
+        write_label = "Write Rate"
+        write_value = f"{format_scientific(metrics.get('tcp_gl1_write_req'))} req/s"
+        sqc_label = "Read Rate"
+        sqc_requests = safe_float_sum(
+            metrics.get("icache_gl1_req"), metrics.get("dcache_gl1_req")
+        )
+        sqc_value = f"{format_scientific(sqc_requests)} req/s"
     tcp_gl1_content = stack_metrics(
         "\n".join([
             colored("Read BW", color_read),
@@ -318,17 +374,15 @@ def _build_kernel_and_l0(
             colored(std_arrows["left"], color_read),
         ]),
         "\n".join([
-            colored("Write BW", color_write),
-            colored(
-                format_value(metrics["tcp_gl1_write_bw"], "Bytes/s", 1), color_write
-            ),
+            colored(write_label, color_write),
+            colored(write_value, color_write),
             colored(std_arrows["right"], color_write),
         ]),
     )
     tcp_gl1_zone = tcp_gl1_content.split("\n")
     sqc_gl1_zone = [
-        colored("Read BW", color_read),
-        colored(format_value(metrics["sqc_gl1_read_bw"], "Bytes/s", 1), color_read),
+        colored(sqc_label, color_read),
+        colored(sqc_value, color_read),
         colored(std_arrows["left"], color_read),
     ]
     gl1_edges_lines = (
@@ -344,17 +398,27 @@ def _build_kernel_and_l0(
 def _build_cache_columns(
     metrics: dict[str, Any],
     std_arrows: dict[str, str],
+    gpu_arch: Optional[str] = None,
 ) -> tuple[Panel, Text, Panel]:
     """GL1 panel, GL1-GL2 edges, GL2 panel."""
 
+    gl1_hit = (
+        ""
+        if gpu_arch == "gfx1201"
+        else (
+            f"{metric_line('Hit Rate', metrics['gl1c_hit'], '%', COLORS['hit'])}\n"
+            f"[dim]{progress_bar(metrics['gl1c_hit'])}[/dim]"
+        )
+    )
+    stall_label = "Req Credits" if gpu_arch == "gfx1201" else "GL2 Stall"
     gl1_content = stack_metrics(
         f"{metric_line('Util', metrics['gl1c_util'], '%', COLORS['util'])}\n"
         f"[dim]{progress_bar(metrics['gl1c_util'])}[/dim]",
-        f"{metric_line('Hit Rate', metrics['gl1c_hit'], '%', COLORS['hit'])}\n"
-        f"[dim]{progress_bar(metrics['gl1c_hit'])}[/dim]",
-        metric_line("GL2 Stall", metrics["gl1c_stall_gl2"], "%", COLORS["stall"]),
+        gl1_hit,
+        metric_line(stall_label, metrics["gl1c_stall_gl2"], "%", COLORS["stall"]),
     )
-    gl1_panel = build_ip_block("GL1 Cache", _CACHE_PANEL_W, _TOTAL_H, gl1_content)
+    gl1_title = "GL1C" if gpu_arch == "gfx1201" else "GL1 Cache"
+    gl1_panel = build_ip_block(gl1_title, _CACHE_PANEL_W, _TOTAL_H, gl1_content)
 
     gl1_gl2_edges_text = build_bw_edges(
         [
@@ -378,6 +442,7 @@ def _build_cache_columns(
 def _build_memory_columns(
     metrics: dict[str, Any],
     std_arrows: dict[str, str],
+    gpu_arch: Optional[str] = None,
 ) -> tuple[Text, Panel, Text, Panel]:
     """GL2-GCEA edges, GCEA panel, DRAM edges, DRAM panel."""
     gl2_gcea_edges_text = build_bw_edges(
@@ -404,8 +469,9 @@ def _build_memory_columns(
     )
 
     total = format_value(metrics["total_bw"], "Bytes/s", 1)
+    memory_type = "GDDR6" if gpu_arch == "gfx1201" else "DDR5/LPDDR5"
     dram_content = stack_metrics(
-        "[dim]DDR5/LPDDR5[/dim]",
+        f"[dim]{memory_type}[/dim]",
         f"Total: [bold bright_green]{total}[/bold bright_green]",
     )
     dram_panel = build_ip_block("DRAM", _CACHE_PANEL_W, _TOTAL_H, dram_content)
@@ -425,7 +491,7 @@ def create_mem_chart_diagram(
     chart_title: str = "",
     gpu_arch: Optional[str] = None,
 ) -> None:
-    """Render the RDNA3.5 memory diagram to *console*."""
+    """Render the RDNA memory diagram to the console."""
     metrics = _extract_metrics(metric_dict)
 
     std_arrows = make_arrows(_STD_ARROW_LEN)
@@ -433,11 +499,13 @@ def create_mem_chart_diagram(
 
     # Build layout columns
     kernel_panel, kernel_edges, l0_stack, gl1_edges = _build_kernel_and_l0(
-        metrics, kernel_arrows, std_arrows
+        metrics, kernel_arrows, std_arrows, gpu_arch
     )
-    gl1_panel, gl1_gl2_edges, gl2_panel = _build_cache_columns(metrics, std_arrows)
+    gl1_panel, gl1_gl2_edges, gl2_panel = _build_cache_columns(
+        metrics, std_arrows, gpu_arch
+    )
     gl2_gcea_edges, gcea_panel, dram_edges, dram_panel = _build_memory_columns(
-        metrics, std_arrows
+        metrics, std_arrows, gpu_arch
     )
 
     # Assemble 11-column grid (edge columns use vertical middle alignment)
@@ -468,7 +536,8 @@ def create_mem_chart_diagram(
     sections: list[Union[str, RenderableType]] = []
     if chart_title:
         sections.append(f"[bold]{chart_title}[/bold]")
-    sections.append(_scope_bar(total - sysmem_span, sysmem_span))
+    memory_label = "Device Memory" if gpu_arch == "gfx1201" else "System Memory"
+    sections.append(_scope_bar(total - sysmem_span, sysmem_span, memory_label))
     sections.append("")
     sections.append(main_layout)
     sections.append("")
@@ -498,7 +567,7 @@ def plot_mem_chart(
     chart_title: str,
     gpu_arch: Optional[str] = None,
 ) -> str:
-    """Render the RDNA3.5 memory chart and return as a string."""
+    """Render the RDNA memory chart and return as a string."""
     return render_chart_to_string(
         create_mem_chart_diagram,
         metric_dict,

@@ -612,6 +612,7 @@ def test_edge_cases_and_error_handling() -> None:
     "gpu_arch",
     [
         pytest.param("gfx1151", id="rdna35"),
+        pytest.param("gfx1201", id="rdna4"),
         pytest.param("gfx942", id="cdna"),
         pytest.param("gfx1250", id="gfx1250"),
     ],
@@ -623,12 +624,13 @@ def test_format_table_output_dispatches_memory_chart_renderer(
     """Memory Chart output uses the architecture renderer and shared heading."""
     calls: dict[str, dict] = {}
 
-    def gfx11_stub(mem_data: dict, *, chart_title: str) -> str:
+    def gfx11_stub(mem_data: dict, *, chart_title: str, gpu_arch: str = "") -> str:
         calls["gfx11"] = {
             "mem_data": mem_data,
             "chart_title": chart_title,
+            "gpu_arch": gpu_arch,
         }
-        return "rendered RDNA3.5 memory chart"
+        return "rendered RDNA memory chart"
 
     def gfx9_stub(
         mem_data: dict,
@@ -677,17 +679,20 @@ def test_format_table_output_dispatches_memory_chart_renderer(
         gpu_arch=gpu_arch,
     )
 
-    if is_gfx115x(gpu_arch):
-        expected, return_value = "gfx11", "rendered RDNA3.5 memory chart"
+    if is_gfx115x(gpu_arch) or gpu_arch == "gfx1201":
+        expected, return_value = "gfx11", "rendered RDNA memory chart"
     elif is_gfx1250(gpu_arch):
         expected, return_value = "gfx1250", "rendered gfx1250 memory chart"
     else:
         expected, return_value = "gfx9", "rendered CDNA memory chart"
 
-    assert calls[expected] == {
+    expected_call = {
         "mem_data": {"Metric A": 1},
         "chart_title": "7. Memory Chart (Normalization: per_wave)",
     }
+    if expected == "gfx11":
+        expected_call["gpu_arch"] = gpu_arch
+    assert calls[expected] == expected_call
     for other in {"gfx11", "gfx9", "gfx1250"} - {expected}:
         assert other not in calls
     assert content == f"{return_value}\n"

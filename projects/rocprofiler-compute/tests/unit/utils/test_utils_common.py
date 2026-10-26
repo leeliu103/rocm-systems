@@ -1511,6 +1511,8 @@ def test_canonical_config_arch_maps_gfx115_variants_to_shared_dir():
     assert canonical_config_arch("gfx1152") == "gfx115x"
     assert canonical_config_arch("gfx1153") == "gfx115x"
     assert canonical_config_arch("gfx942") == "gfx942"
+    assert canonical_config_arch("gfx1201") == "gfx1201"
+    assert canonical_config_arch("gfx1250") == "gfx1250"
 
 
 @pytest.mark.misc

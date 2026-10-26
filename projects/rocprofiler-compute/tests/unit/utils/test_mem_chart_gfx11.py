@@ -3,7 +3,10 @@
 
 """Unit tests for the gfx11 memory-chart renderer."""
 
+import json
+import sys
 from pathlib import Path
+from xml.etree import ElementTree
 
 import common
 import pytest
@@ -14,22 +17,84 @@ from utils.mem_chart_common import strip_ansi
 
 DEFAULT_TITLE = "3. Memory Chart (Normalization: per_kernel)"
 
-MEM_CHART_PANEL_YAML = (
-    Path(common.SRC)
-    / "rocprof_compute_soc"
-    / "analysis_configs"
-    / "gfx115x"
-    / "0300_memory_chart.yaml"
-)
+ANALYSIS_CONFIG_DIR = Path(common.SRC) / "rocprof_compute_soc" / "analysis_configs"
 
 
-def mem_chart_yaml_metric_names() -> list[str]:
-    panel = yaml.safe_load(MEM_CHART_PANEL_YAML.read_text(encoding="utf-8"))
+def mem_chart_yaml_metric_names(arch: str = "gfx115x") -> list[str]:
+    path = ANALYSIS_CONFIG_DIR / arch / "0300_memory_chart.yaml"
+    panel = yaml.safe_load(path.read_text(encoding="utf-8"))
     return [
         name
         for entry in panel["Panel Config"]["data source"]
         for name in entry["metric_table"]["metric"]
     ]
+
+
+@pytest.mark.parametrize("entry", ["plot", "txt", "svg"])
+@pytest.mark.parametrize(
+    "metric, value, expected",
+    [
+        ("ICache-GL1 Request Rate", 1234567890123, "1.23e+12 req/s"),
+        ("DCache-GL1 Request Rate", 1234567890123, "1.23e+12 req/s"),
+        ("GL0 Request Rate (TCP Cache)", 1234567890123, "Req/s 1.23e+12"),
+        ("TCP-GL1 Write Request Rate", 1234567890123, "1.23e+12 req/s"),
+        ("LDS Indexed-active Cycles", 1234567890123, "1.23e+12"),
+        ("LDS Bank Conflict Cycles", 1234567890123, "1.23e+12"),
+        ("LDS Instructions", 1234567890123, "1.23e+12"),
+        ("LDS Bank Conflict Cycle Ratio", 12.5, "12.5%"),
+        ("GL1C Interface Busy", 12.5, "12.5%"),
+        ("GL1C Request Credit Stall", 12.5, "12.5%"),
+    ],
+)
+def test_gfx1201_yaml_values_reach_plot_and_exports(
+    entry, metric, value, expected, monkeypatch, tmp_path
+):
+    """New RDNA4 fields and aliases survive both shared normalization paths."""
+    metrics = dict.fromkeys(mem_chart_yaml_metric_names("gfx1201"))
+    assert metric in metrics
+    metrics[metric] = value
+    if entry == "plot":
+        output = mem_chart_gfx11.plot_mem_chart(
+            metrics, chart_title=DEFAULT_TITLE, gpu_arch="gfx1201"
+        )
+    else:
+        data_path = tmp_path / "metrics.json"
+        output_path = tmp_path / f"chart.{entry}"
+        data_path.write_text(json.dumps(metrics), encoding="utf-8")
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "mem_chart_gfx11",
+                "--data",
+                str(data_path),
+                "--arch",
+                "gfx1201",
+                f"--{entry}",
+                str(output_path),
+            ],
+        )
+        mem_chart_gfx11.main()
+        output = output_path.read_text(encoding="utf-8")
+        if entry == "svg":
+            output = "".join(ElementTree.fromstring(output).itertext()).replace(
+                "\xa0", " "
+            )
+    assert expected in strip_ansi(output)
+
+
+@pytest.mark.parametrize("value, expected", [(0, "0 req/s"), (None, "N/A req/s")])
+def test_gfx1201_request_rates_preserve_zero_and_missing(value, expected):
+    metrics = dict.fromkeys(mem_chart_yaml_metric_names("gfx1201"), value)
+    output = strip_ansi(
+        mem_chart_gfx11.plot_mem_chart(
+            metrics, chart_title=DEFAULT_TITLE, gpu_arch="gfx1201"
+        )
+    )
+    assert output.count(expected) == 2  # TCP writes and combined SQC reads
+    expected_gl0 = "Req/s 0" if value == 0 else "Req/s N/A"
+    assert expected_gl0 in output
+    assert "Indexed cycles" in output and "Conflict cycles" in output
 
 
 # =============================================================================
@@ -73,6 +138,29 @@ class TestPlotMemChartGfx11:
         assert norm["GL0 Cache Hit Rate (TCP Cache)"] == 1.0
         assert "noise" not in norm
         assert norm["ICache Requests"] is None
+
+    def test_gfx1201_interface_labels_and_values(self) -> None:
+        metrics = {
+            "LDS Instructions": 1234,
+            "LDS Bank Conflict Cycle Ratio": 12.5,
+            "GL1C Interface Busy": 37.5,
+            "GL1C Request Credit Stall": 6.25,
+        }
+        output = strip_ansi(
+            mem_chart_gfx11.plot_mem_chart(
+                metrics, chart_title=DEFAULT_TITLE, gpu_arch="gfx1201"
+            )
+        )
+        assert "GL1C" in output
+        assert "GL1 Cache" not in output
+        assert "Device Memory" in output
+        assert "GDDR6" in output
+        assert "DDR5" not in output
+        assert "Instructions" in output and "1.23e+03" in output
+        assert "12.5%" in output
+        assert "37.5%" in output
+        assert "Req Credits" in output and "6.2%" in output
+        assert "N/A" in output
 
 
 # =============================================================================
