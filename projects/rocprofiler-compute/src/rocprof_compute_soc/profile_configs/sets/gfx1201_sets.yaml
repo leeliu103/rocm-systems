@@ -1,7 +1,8 @@
 sets:
-- title: Instruction Throughput
-  set_option: instruction_thruput
-  description: VALU instruction rates and WMMA instruction counts, without a FLOP conversion.
+- title: Compute Throughput (Instruction Rates)
+  set_option: compute_thruput_flops
+  description: VALU instruction rates and WMMA instruction counts. These are instruction counts, not
+    FLOPs; no FLOP conversion is applied.
   metric:
   - 2.1.0: VALU Instruction Rate
   - 2.1.1: FP64 VALU Instruction Rate

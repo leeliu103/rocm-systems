@@ -26,9 +26,9 @@ Panel Config:
         GL2-Fabric Write BW:
           value: SUM(GL2C_EA_WRREQ_32B_sum * 32 + GL2C_EA_WRREQ_64B_sum * 64 + GL2C_EA_WRREQ_128B_sum * 128 + GL2C_EA_WRREQ_256B_sum * 256 + GL2C_EA_WRREQ_COMPRESSED_128B_sum * 128 + GL2C_EA_WRREQ_COMPRESSED_256B_sum * 256) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
           unit: Bytes/s
-        LDS Bank Conflict Cycles:
+        LDS Bank Conflict Cycles per Dispatch:
           value: AVG(SQC_LDS_BANK_CONFLICT_sum)
-          unit: Counter cycles
+          unit: Cycles
         Wave Dependency Wait:
           value: 100 * SUM(SQ_WAIT_ANY_sum) / SUM(SQ_WAVE_CYCLES_sum)
           unit: Percent
@@ -61,7 +61,7 @@ Panel Config:
           unit: Requests/s
   metrics_description:
     GL2 Cache Hit Rate: >-
-      Percentage of GL2 cache requests that are serviced from cache without accessing system memory. Higher hit rates reduce memory bandwidth pressure and improve performance. Low hit rates may indicate poor data locality or working sets that exceed cache capacity.
+      Percentage of GL2 cache requests serviced from cache without a request to the fabric (GL2C/EA interface). Higher hit rates reduce memory bandwidth pressure and improve performance. Low hit rates may indicate poor data locality or working sets that exceed cache capacity.
     GL2-Fabric Read BW: >-
       Logical request bytes per second at the GL2C/EA interface, including compressed 128-byte and 256-byte requests at their logical size. This is not a measurement of physical DRAM bytes; writebacks may occur outside the dispatch interval.
     GL2-Fabric Write BW: >-
@@ -80,7 +80,7 @@ Panel Config:
       Issued VALU instructions per nanosecond, expressed as billions of instructions per second. The hardware counter counts instructions rather than per-lane operations; it does not provide a FLOP rate or a percent of arithmetic peak.
     FP64 VALU Instruction Rate: >-
       Issued double-precision VALU instructions per nanosecond, expressed as billions of instructions per second. Instruction counts do not account for active lanes or operations per instruction, so no FLOP conversion or peak is applied.
-    LDS Bank Conflict Cycles: >-
+    LDS Bank Conflict Cycles per Dispatch: >-
       Unscaled LDS bank-conflict cycle counter, summed across WGPs and averaged across dispatches. This is a cycle count, not a number of conflicting memory accesses.
     GL0 Request Rate (TCP Cache): >-
       Hardware request count per second. Request sizes are not inferred from a fixed cache-line size.

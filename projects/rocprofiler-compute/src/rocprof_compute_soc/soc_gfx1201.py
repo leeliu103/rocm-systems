@@ -17,7 +17,7 @@ class gfx1201_soc(OmniSoC_Base):
         self.set_compatible_profilers(["rocprofv3", "rocprofiler-sdk"])
         self.set_perfmon_config(mi_gpu_specs.get_perfmon_config("gfx1201"))
 
-        self._mspec.l2_banks = 32
+        self._mspec.l2_banks = 32  # GL2C instances (aqlprofile gfx12_block_info.h)
         self._mspec.lds_banks_per_cu = 32
         self._mspec.pipes_per_gpu = 2
 

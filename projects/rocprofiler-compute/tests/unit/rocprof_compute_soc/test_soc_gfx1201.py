@@ -29,9 +29,8 @@ def soc():
     return gfx1201_soc(args, MachineSpecsRDNA4(gpu_arch="gfx1201", gpu_series="RDNA4"))
 
 
-@pytest.mark.parametrize("block, capacity", [("SQ", 8), ("GL2C", 4)])
-def test_counter_capacity_splits_passes(soc, block, capacity, monkeypatch):
-    """One extra event spills to another pass at the Navi48 PMC limit."""
+def test_soc_sets_arch_and_machine_constants(soc):
+    """The SoC reports gfx1201 and fills the RDNA4 machine constants."""
     assert soc.get_arch() == "gfx1201"
     assert (
         soc._mspec.l2_banks,
@@ -39,6 +38,10 @@ def test_counter_capacity_splits_passes(soc, block, capacity, monkeypatch):
         soc._mspec.pipes_per_gpu,
     ) == (32, 32, 2)
 
+
+@pytest.mark.parametrize("block, capacity", [("SQ", 8), ("GL2C", 4)])
+def test_counter_capacity_splits_passes(soc, block, capacity, monkeypatch):
+    """One extra event spills to another pass at the Navi48 PMC limit."""
     monkeypatch.setattr(soc, "_same_bucket_priority_metric_ids", lambda: ())
     counters = {f"{block}_EVENT_{index}" for index in range(capacity + 1)}
     files, _, _ = soc._allocate_perfmon_counter_files(counters)
@@ -80,21 +83,36 @@ def test_default_counters_resolve_to_shipped_sdk_definitions(soc):
             assert definition["block"] and "event" in definition
 
 
-def test_gpu_busy_operands_share_profile_job(
+def _profile_jobs(
     soc: gfx1201_soc, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """GPU Busy uses numerator and denominator from the same kernel replay."""
+) -> list[set[str]]:
+    """Coalesce the full counter set and return each job's PMC counters."""
     counters, _ = soc.detect_counters()
     soc.get_args().output_directory = tmp_path
     monkeypatch.setattr(soc, "get_rocprof_supported_counters", lambda: counters)
 
     soc.perfmon_coalesce(counters)
 
-    jobs = [
+    return [
         set(parse_pmc_perf(str(filename)))
         for filename in (tmp_path / "perfmon").glob("pmc_perf_*.yaml")
     ]
+
+
+def test_gpu_busy_operands_share_profile_job(
+    soc: gfx1201_soc, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GPU Busy uses numerator and denominator from the same kernel replay."""
+    jobs = _profile_jobs(soc, tmp_path, monkeypatch)
     assert any({"GRBM_GUI_ACTIVE", "GRBM_COUNT"}.issubset(job) for job in jobs)
+
+
+def test_wave_life_operands_share_profile_job(
+    soc: gfx1201_soc, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Wave Life uses numerator and denominator from the same kernel replay."""
+    jobs = _profile_jobs(soc, tmp_path, monkeypatch)
+    assert any({"SQ_WAVE_CYCLES_sum", "SQ_WAVES_sum"}.issubset(job) for job in jobs)
 
 
 def test_shipped_sets_fit_one_pass_without_losing_counters(soc):

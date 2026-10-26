@@ -100,7 +100,7 @@ Panel Config:
     Read Requests: >-
       Number of read requests to the GL2 cache. High read counts indicate memory-intensive load operations. Compare with hit rate to assess GL2 cache effectiveness for reads.
     Write Requests: >-
-      Number of write requests to the GL2 cache. Write traffic includes stores and cache writebacks from GL1. High write counts indicate write-intensive workloads.
+      Number of write requests to the GL2 cache. Write traffic includes stores forwarded through the GL1C interface; Navi4x has no GL1 cache. High write counts indicate write-intensive workloads.
     Atomic Requests: >-
       Number of atomic memory operations processed by the GL2 cache. Atomics provide thread-safe memory access but may serialize at contended addresses. High counts may impact performance.
     EA Read Requests (DRAM): >-

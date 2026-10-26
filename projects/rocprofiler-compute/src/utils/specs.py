@@ -862,7 +862,12 @@ class MachineSpecs:
     num_memory_channels: Optional[str] = field(
         default=None,
         metadata={
-            "doc": "Number of memory channels (HBM, LPDDR, or GDDR)",
+            "doc": (
+                "Number of memory channels. CDNA counts HBM channels; RDNA counts "
+                "32-bit memory interfaces (VRAM bit width // 32), not the 16-bit "
+                "JEDEC channels of LPDDR5X or GDDR6 (RDNA 3.5 falls back to GL2 "
+                "channels when the bit width is unknown)."
+            ),
             "name": "Memory Channels",
             "show_in_table": True,
         },
@@ -1095,7 +1100,7 @@ class MachineSpecsRDNA35(MachineSpecs):
 @_kw_only
 @dataclass(repr=False)
 class MachineSpecsRDNA4(MachineSpecsRDNA35):
-    """RDNA 4 specs with per-shader-array GL1C interfaces and GDDR channels."""
+    """RDNA 4 specs with per-shader-array GL1C and 32-bit memory interfaces."""
 
     num_gl1c: Optional[str] = field(
         default=None,

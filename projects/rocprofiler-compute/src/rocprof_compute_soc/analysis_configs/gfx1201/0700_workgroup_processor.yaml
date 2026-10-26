@@ -249,6 +249,22 @@ Panel Config:
           max: 100 * MAX(SQC_DCACHE_HITS_sum / (SQC_DCACHE_HITS_sum + SQC_DCACHE_MISSES_sum))
           unit: Percent
   metrics_description:
+    Grid Size: >-
+      Total number of work-items in the dispatch grid.
+    Workgroup Size: >-
+      Number of work-items per workgroup in the dispatch.
+    VGPRs: >-
+      Number of architectural vector general-purpose registers allocated per wavefront for the kernel. Higher VGPR allocation can limit the number of resident wavefronts.
+    SGPRs: >-
+      Number of scalar general-purpose registers allocated per wavefront for the kernel.
+    LDS Allocation: >-
+      Bytes of Local Data Share allocated per workgroup. Larger LDS allocations can limit the number of workgroups resident on a workgroup processor.
+    Scratch Allocation: >-
+      Bytes of scratch (private) memory allocated per work-item. Nonzero values usually indicate register spilling or private arrays that could not be held in registers.
+    Dispatched Waves: >-
+      Number of wavefronts launched by the SQ. This is a dispatch count, not a measure of occupancy.
+    Dispatched Threads: >-
+      Number of work-items launched by the SQ.
     Wave Life: >-
       Wave-cycle counter divided by dispatched waves. The wave-cycle counter uses quad-cycles (four shader clock cycles) and is nondeterministic; no busy-cycle or occupancy normalization is applied.
     Total Instructions: >-
@@ -267,6 +283,16 @@ Panel Config:
       Number of vector memory instructions executed, including global, buffer, and texture operations. High VMEM counts relative to VALU may indicate memory-bound workloads.
     Instructions - LDS: >-
       Number of Local Data Share instructions executed. LDS provides fast shared memory within a workgroup. High counts indicate active use of shared memory for inter-work-item communication.
+    Instructions - VMEM Flat: >-
+      Flat-addressed instructions per normalization unit. Flat instructions resolve their address space at run time and may target global, scratch, or LDS memory.
+    Instructions - TEX Load: >-
+      Vector memory load instructions issued through the texture path per normalization unit. This is an instruction count, not a byte count.
+    Instructions - TEX Store: >-
+      Vector memory store instructions issued through the texture path per normalization unit. This is an instruction count, not a byte count.
+    Instructions - Flat Load: >-
+      Flat-addressed load instructions per normalization unit.
+    Instructions - Flat Store: >-
+      Flat-addressed store instructions per normalization unit.
     LDS Direct Load Instructions: >-
       Issued instructions counted by SQ_INSTS_LDS_DIRECT_LOAD. This is an instruction count; it does not estimate LDS data volume.
     LDS Parameter Load Instructions: >-
