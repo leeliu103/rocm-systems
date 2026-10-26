@@ -217,6 +217,83 @@ TEST(evaluate_ast, counter_expansion_function)
     }
 }
 
+TEST(evaluate_ast, derived_alias_semantics)
+{
+    using namespace rocprofiler::counters;
+
+    Metric raw("gfx1201", "SQ_LEVEL", "SQ", "75", "", "", "", 1);
+    auto   accumulated = raw;
+    accumulated.setflags(2);
+    std::unordered_map<uint64_t, std::vector<rocprofiler_counter_record_t>> samples;
+    for(size_t se = 0; se < 2; ++se)
+    {
+        for(size_t wgp = 0; wgp < 2; ++wgp)
+        {
+            rocprofiler_counter_record_t record{};
+            set_counter_in_rec(record.id, {.handle = raw.id()});
+            set_dim_in_rec(record.id, ROCPROFILER_DIMENSION_SHADER_ENGINE, se);
+            set_dim_in_rec(record.id, ROCPROFILER_DIMENSION_WGP, wgp);
+            record.counter_value = 10 * se + wgp + 1;
+            samples[raw.result_key()].push_back(record);
+            record.counter_value += 100;
+            samples[accumulated.result_key()].push_back(record);
+        }
+    }
+
+    const std::vector<std::pair<std::string, size_t>> cases = {
+        {"select(SQ_LEVEL,[DIMENSION_WGP=[0]])", 2},
+        {"reduce(SQ_LEVEL,sum,[DIMENSION_WGP])", 2},
+        {"accumulate(SQ_LEVEL,HIGH_RES)", 4},
+        {"0.5", 1}};
+    for(const auto& [expression, expected_size] : cases)
+    {
+        SCOPED_TRACE(expression);
+        std::unordered_map<std::string, Metric> metrics = {
+            {"SQ_LEVEL", raw},
+            {"DIRECT", Metric("gfx1201", "DIRECT", "", "", "", expression, "", 2)},
+            {"ALIAS", Metric("gfx1201", "ALIAS", "", "", "", "DIRECT", "", 3)},
+            {"CHAINED", Metric("gfx1201", "CHAINED", "", "", "", "ALIAS", "", 4)}};
+        std::unordered_map<std::string, EvaluateAST> asts;
+        for(const auto& [name, metric] : metrics)
+        {
+            RawAST* ast = nullptr;
+            auto*   buf = yy_scan_string(metric.expression().empty() ? name.c_str()
+                                                                   : metric.expression().c_str());
+            yyparse(&ast);
+            ASSERT_TRUE(ast);
+            asts.emplace(name, EvaluateAST({.handle = metric.id()}, metrics, *ast, "gfx1201"));
+            yy_delete_buffer(buf);
+            delete ast;
+        }
+        asts.at("CHAINED").expand_derived(asts);
+
+        std::vector<std::unique_ptr<std::vector<rocprofiler_counter_record_t>>> cache;
+        auto* expected = asts.at("DIRECT").evaluate(samples, cache);
+        ASSERT_NE(expected, nullptr);
+        ASSERT_EQ(expected->size(), expected_size);
+        auto by_id = [](const auto& a, const auto& b) { return a.id < b.id; };
+        std::sort(expected->begin(), expected->end(), by_id);
+        for(const auto* name : {"ALIAS", "CHAINED"})
+        {
+            SCOPED_TRACE(name);
+            auto& ast = asts.at(name);
+            EXPECT_EQ(ast.out_id().handle, metrics.at(name).id());
+            auto* actual = ast.evaluate(samples, cache);
+            ASSERT_NE(actual, nullptr);
+            ASSERT_EQ(actual->size(), expected->size());
+            std::sort(actual->begin(), actual->end(), by_id);
+            ast.set_out_id(*actual);
+            for(size_t i = 0; i < actual->size(); ++i)
+            {
+                EXPECT_DOUBLE_EQ(actual->at(i).counter_value, expected->at(i).counter_value);
+                EXPECT_EQ(rec_to_dim_pos(actual->at(i).id, ROCPROFILER_DIMENSION_NONE),
+                          rec_to_dim_pos(expected->at(i).id, ROCPROFILER_DIMENSION_NONE));
+                EXPECT_EQ(rec_to_counter_id(actual->at(i).id).handle, metrics.at(name).id());
+            }
+        }
+    }
+}
+
 namespace
 {
 void

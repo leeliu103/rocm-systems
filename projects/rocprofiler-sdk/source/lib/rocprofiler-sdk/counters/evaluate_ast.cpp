@@ -860,9 +860,9 @@ EvaluateAST::expand_derived(std::unordered_map<std::string, EvaluateAST>& asts)
         if(auto* ptr = rocprofiler::common::get_val(asts, _metric.name()))
         {
             ptr->expand_derived(asts);
-            _children  = ptr->children();
-            _type      = ptr->type();
-            _reduce_op = ptr->reduce_op();
+            const auto out_id = _out_id;
+            *this             = *ptr;
+            _out_id           = out_id;
         }
     }
 }
