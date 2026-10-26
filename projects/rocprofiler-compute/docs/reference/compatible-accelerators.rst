@@ -63,9 +63,11 @@ ROCm Compute Profiler. See :doc:`rocm:reference/gpu-arch-specs` for full AMD Ins
         - Status
 
       * - AMD Radeon RX 9070 Series / Radeon AI PRO R9700 (RDNA4, gfx1201)
-        - Counter profiling and analysis. Roofline and GCEA analysis are not available.
+        - Counter profiling and analysis (see :doc:`/conceptual/rdna/rdna-performance-model`). Roofline and GCEA analysis are not available.
 
     gfx1201 uses the RDNA panel layout with architecture-specific counter
-    definitions. VALU throughput is reported as instructions, not FLOPs.
+    definitions. Unlike gfx115x, GL1C is an interface only (there is no GL1
+    cache). Speed-of-Light reports achieved values without peak or percentage
+    of peak. VALU throughput is reported as instructions, not FLOPs.
     GL2-to-fabric traffic measures requests at that interface; it does not
     measure physical GDDR traffic.
