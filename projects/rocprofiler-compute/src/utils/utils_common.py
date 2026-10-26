@@ -65,6 +65,16 @@ def is_gfx1250(gpu_arch: Optional[str]) -> bool:
     return gpu_arch == "gfx1250"
 
 
+def uses_gfx11_mem_chart(gpu_arch: Optional[str]) -> bool:
+    """Return True if gpu_arch is rendered by mem_chart_gfx11."""
+    return is_gfx115x(gpu_arch) or is_gfx1201(gpu_arch)
+
+
+def has_mem_chart(gpu_arch: Optional[str]) -> bool:
+    """Return True if gpu_arch has a memory chart renderer."""
+    return is_gfx9(gpu_arch) or uses_gfx11_mem_chart(gpu_arch) or is_gfx1250(gpu_arch)
+
+
 def canonical_config_arch(gpu_arch: Optional[str]) -> Optional[str]:
     """Map GPU architectures to the shared analysis-config directory name."""
     if gpu_arch is None:

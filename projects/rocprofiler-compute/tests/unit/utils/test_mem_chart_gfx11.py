@@ -49,7 +49,7 @@ def mem_chart_yaml_metric_names(arch: str = "gfx115x") -> list[str]:
 def test_gfx1201_yaml_values_reach_plot_and_exports(
     entry, metric, value, expected, monkeypatch, tmp_path
 ):
-    """New RDNA4 fields and aliases survive both shared normalization paths."""
+    """gfx1201 YAML fields survive both shared normalization paths."""
     metrics = dict.fromkeys(mem_chart_yaml_metric_names("gfx1201"))
     assert metric in metrics
     metrics[metric] = value
@@ -109,6 +109,32 @@ class TestGetSampleMetrics:
         first["TCP-GL1 Read Bandwidth"] = 0
         assert second["TCP-GL1 Read Bandwidth"] != 0
 
+    def test_gfx1201_sample_keys_match_yaml(self):
+        sample = mem_chart_gfx11.DEFAULT_SAMPLE_METRICS_GFX1201
+        assert set(sample) == set(mem_chart_yaml_metric_names("gfx1201"))
+
+
+@pytest.mark.parametrize(
+    "arch, absent, present",
+    [
+        ("gfx1201", ("N/A",), ("Instructions", "Req Credits", "Req/s", "Fabric")),
+        (None, ("N/A",), ("GCEA", "DRAM", "System Memory")),
+    ],
+)
+def test_cli_preview_uses_arch_sample(arch, absent, present, monkeypatch, tmp_path):
+    """The no --data CLI preview fills every metric of the requested layout."""
+    output_path = tmp_path / "chart.txt"
+    argv = ["mem_chart_gfx11", "--txt", str(output_path)]
+    if arch:
+        argv += ["--arch", arch]
+    monkeypatch.setattr(sys, "argv", argv)
+    mem_chart_gfx11.main()
+    output = output_path.read_text(encoding="utf-8")
+    for text in present:
+        assert text in output
+    for text in absent:
+        assert text not in output
+
 
 # =============================================================================
 # gfx11 plot_mem_chart
@@ -139,7 +165,7 @@ class TestPlotMemChartGfx11:
         assert "noise" not in norm
         assert norm["ICache Requests"] is None
 
-    def test_gfx1201_interface_labels_and_values(self) -> None:
+    def test_gfx1201_interface_labels(self) -> None:
         metrics = {
             "LDS Instructions": 1234,
             "LDS Bank Conflict Cycle Ratio": 12.5,
@@ -153,14 +179,25 @@ class TestPlotMemChartGfx11:
         )
         assert "GL1C" in output
         assert "GL1 Cache" not in output
-        assert "Device Memory" in output
-        assert "GDDR6" in output
-        assert "DDR5" not in output
         assert "Instructions" in output and "1.23e+03" in output
-        assert "12.5%" in output
+        assert "Cycle ratio" in output and "12.5%" in output
         assert "37.5%" in output
         assert "Req Credits" in output and "6.2%" in output
         assert "N/A" in output
+
+    def test_gfx1201_chart_ends_at_measured_fabric_traffic(self) -> None:
+        metrics = dict.fromkeys(mem_chart_yaml_metric_names("gfx1201"), 1.0)
+        metrics["GL2-Fabric Read BW"] = 64e9
+        metrics["GL2-Fabric Write BW"] = 24e9
+        output = strip_ansi(
+            mem_chart_gfx11.plot_mem_chart(
+                metrics, chart_title=DEFAULT_TITLE, gpu_arch="gfx1201"
+            )
+        )
+        assert "64.0 GB/s" in output and "24.0 GB/s" in output
+        assert "Fabric ─" in output
+        for absent in ("SysArb", "GCEA", "DDR5", "Total:", "System Memory", "N/A"):
+            assert absent not in output
 
 
 # =============================================================================
@@ -205,7 +242,7 @@ class TestZeroVersusMissingMetrics:
 
 
 class TestMemChartPanelYamlSync:
-    """gfx115x chart metric names must track the YAML on disk."""
+    """Chart metric names must track the YAML on disk for each architecture."""
 
     def test_panel_metric_keys_match_yaml_in_order(self):
         assert (
@@ -213,10 +250,17 @@ class TestMemChartPanelYamlSync:
             == mem_chart_yaml_metric_names()
         )
 
-    def test_every_chart_lookup_resolves_against_yaml(self):
-        metrics = dict.fromkeys(mem_chart_yaml_metric_names(), 1.0)
+    @pytest.mark.parametrize(
+        "arch, layout",
+        [
+            ("gfx115x", mem_chart_gfx11._GFX115X_LAYOUT),
+            ("gfx1201", mem_chart_gfx11._GFX1201_LAYOUT),
+        ],
+    )
+    def test_every_chart_lookup_resolves_against_yaml(self, arch, layout):
+        metrics = dict.fromkeys(mem_chart_yaml_metric_names(arch), 1.0)
         extracted = mem_chart_gfx11._extract_metrics(
-            mem_chart_gfx11.normalize_mem_chart_metrics(metrics)
+            mem_chart_gfx11.normalize_mem_chart_metrics(metrics), layout
         )
         unresolved = sorted(key for key, value in extracted.items() if value is None)
         assert not unresolved, f"metric names drifted from the YAML: {unresolved}"
