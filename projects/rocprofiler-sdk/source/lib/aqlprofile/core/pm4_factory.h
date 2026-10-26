@@ -312,8 +312,9 @@ private:
             int cmp = strcmp(a.name, b.name);
             if(cmp < 0) return true;
             if(cmp > 0) return false;
-            // If gfxip strings are equal, compare cu_num
-            return a.cu_num < b.cu_num;
+            if(a.cu_num != b.cu_num) return a.cu_num < b.cu_num;
+            // Builders retain the CU bitmap used to read active WGPs.
+            return memcmp(a.cu_bitmap.bits, b.cu_bitmap.bits, sizeof(a.cu_bitmap.bits)) < 0;
         }
     };
     typedef std::map<AgentInfo, Pm4Factory*, instances_fncomp_t> instances_t;

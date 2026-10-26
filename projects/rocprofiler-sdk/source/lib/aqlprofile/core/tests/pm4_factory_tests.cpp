@@ -4,6 +4,10 @@
 #include <gtest/gtest.h>
 #include "lib/aqlprofile/core/pm4_factory.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 using namespace aql_profile;
 
 namespace
@@ -75,4 +79,58 @@ TEST(Pm4FactoryTest, Gfx117xGpuIdOrdering)
     EXPECT_GT(GFX117X_GPU_ID, GFX11_GPU_ID);
     EXPECT_LT(GFX117X_GPU_ID, GFX12_GPU_ID);
     EXPECT_GT(GFX117X_GPU_ID, MI350_GPU_ID);
+}
+
+TEST(Pm4FactoryTest, HarvestedAgentsKeepOwnCounterLayout)
+{
+    for(const char* name : {"gfx1200", "gfx1201"})
+    {
+        for(bool reverse : {false, true})
+        {
+            // Equal CU counts, but active WGPs {0,1,2} versus {0,1,3} in each SA.
+            const std::string gfxip =
+                std::string(name) + (reverse ? "-harvest-first" : "-contig-first");
+            aqlprofile_agent_info_v2_t info{};
+            info.agent_gfxip            = gfxip.c_str();
+            info.se_num                 = strcmp(name, "gfx1200") == 0 ? 2 : 4;
+            info.cu_num                 = info.se_num * 12;
+            info.xcc_num                = 1;
+            info.shader_arrays_per_se   = 2;
+            const uint32_t sa_count     = info.se_num * info.shader_arrays_per_se;
+            auto           make_factory = [&](uint32_t mask) {
+                for(uint32_t se = 0; se < info.se_num; ++se)
+                    for(uint32_t sa = 0; sa < info.shader_arrays_per_se; ++sa)
+                        info.cu_bitmap.bits[se][sa] = mask;
+                return Pm4Factory::Create(RegisterAgent(&info));
+            };
+
+            auto* first  = make_factory(reverse ? 0xcf : 0x3f);
+            auto* second = make_factory(reverse ? 0x3f : 0xcf);
+            EXPECT_NE(first, second);
+            EXPECT_EQ(first, make_factory(reverse ? 0xcf : 0x3f));
+
+            for(auto [factory, harvested] :
+                {std::pair{first, reverse}, std::pair{second, !reverse}})
+            {
+                const uint32_t span = harvested ? 4 : 3;
+                ASSERT_EQ(factory->GetNumWGPs(), span);
+                ASSERT_EQ(factory->GetNumEvents(HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ),
+                          sa_count * span);
+
+                counter_des_t counter{};
+                counter.block_des.id = HSA_VEN_AMD_AQLPROFILE_BLOCK_NAME_SQ;
+                counter.block_info   = factory->GetBlockInfo(counter.block_des.id);
+                pm4_builder::counters_vector counters;
+                counters.push_back(counter);
+                std::vector<uint32_t>  data(sa_count * span * 2, 0xdeadbeef);
+                pm4_builder::CmdBuffer commands;
+                EXPECT_EQ(factory->GetPmcBuilder()->Read(&commands, counters, data.data()),
+                          data.size() * sizeof(uint32_t));
+                for(uint32_t sa = 0; sa < sa_count; ++sa)
+                    for(uint32_t wgp = 0; wgp < span; ++wgp)
+                        EXPECT_EQ(data[(sa * span + wgp) * 2],
+                                  harvested && wgp == 2 ? 0u : 0xdeadbeefu);
+            }
+        }
+    }
 }
