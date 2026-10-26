@@ -2249,7 +2249,9 @@ rocprofiler-sdk:
             - gfx950
           expression: wave_front_size
     - name: MeanOccupancyPerActiveCU
-      description: Mean occupancy per active compute unit.
+      description: >-
+        Mean occupancy per active compute unit. On RDNA4 (gfx12, gfx1200, gfx1201), this reports
+        mean resident waves per active workgroup processor (WGP, two compute units).
       properties: []
       definitions:
         - architectures:

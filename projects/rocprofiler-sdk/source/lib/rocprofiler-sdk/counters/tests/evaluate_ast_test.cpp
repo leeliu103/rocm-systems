@@ -424,6 +424,41 @@ TEST(evaluate_ast, counter_constants)
     }
 }
 
+TEST(evaluate_ast, agent_property_records)
+{
+    rocprofiler_agent_t agent{};
+    agent.num_xcc                  = 3;
+    agent.max_engine_clk_fcompute  = 2350;
+    agent.fw_version.ui32.uCode     = 128;
+    agent.fw_version.ui32.Major     = 9;
+    agent.sdma_fw_version.uCodeSDMA = 662;
+    agent.sdma_fw_version.uCodeRes  = 17;
+
+    const std::map<std::string, double> expected = {
+        {"num_xcc", 3},
+        {"max_engine_clk_fcompute", 2350},
+        {"fw_version", 128},
+        {"sdma_fw_version", 662}};
+    std::set<Metric> metrics;
+    std::unordered_map<uint64_t, std::vector<rocprofiler_counter_record_t>> samples;
+    uint64_t id = 100;
+    for(const auto& [name, value] : expected)
+    {
+        metrics.emplace("gfx1201", name, "", "", "", "", "yes", id);
+        samples[id++].emplace_back().counter_value = -1;
+    }
+
+    EvaluateAST::read_special_counters(agent, metrics, samples);
+    for(const auto& metric : metrics)
+    {
+        SCOPED_TRACE(metric.name());
+        const auto& records = samples.at(metric.id());
+        ASSERT_EQ(records.size(), 1);
+        EXPECT_DOUBLE_EQ(records.front().counter_value, expected.at(metric.name()));
+        EXPECT_EQ(rocprofiler::counters::rec_to_counter_id(records.front().id).handle, metric.id());
+    }
+}
+
 namespace
 {
 std::vector<rocprofiler_record_counter_t>

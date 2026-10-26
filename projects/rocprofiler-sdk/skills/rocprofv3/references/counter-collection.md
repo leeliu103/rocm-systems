@@ -99,7 +99,7 @@ for one dispatch.
 | `FETCH_SIZE` | KiB read from DRAM (HBM), including over-fetch. |
 | `WRITE_SIZE` | KiB written to DRAM. Not defined on RDNA4 (gfx1200, gfx1201); there only read bandwidth is available. |
 | `OccupancyPercent` | Average resident waves as % of the hardware maximum (32 waves/CU on CDNA3). |
-| `MeanOccupancyPerActiveCU` | Average resident waves per CU while the CU is busy. |
+| `MeanOccupancyPerActiveCU` | Average resident waves per CU while the CU is busy. On RDNA4 (gfx1200, gfx1201), the result is per active WGP (two CUs), despite the counter name. |
 | `VALUBusy` | % of GPU time vector ALUs issue. Can exceed 100% on multi-XCD parts; compare between kernels. |
 | `MfmaUtil` | % of time matrix cores are busy. |
 | `MemUnitStalled` | % of GPU time the vector memory unit is stalled by the cache. |

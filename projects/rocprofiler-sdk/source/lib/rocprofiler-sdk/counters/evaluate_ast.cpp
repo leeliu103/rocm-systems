@@ -724,6 +724,7 @@ get_agent_property(std::string_view property, const rocprofiler_agent_t& agent)
         GEN_MAP_ENTRY("gds_size_in_kb", agent_info.gds_size_in_kb),
         GEN_MAP_ENTRY("num_gws", agent_info.num_gws),
         GEN_MAP_ENTRY("wave_front_size", agent_info.wave_front_size),
+        GEN_MAP_ENTRY("num_xcc", agent_info.num_xcc),
         GEN_MAP_ENTRY("array_count", agent_info.array_count),
         GEN_MAP_ENTRY("simd_arrays_per_engine", agent_info.simd_arrays_per_engine),
         GEN_MAP_ENTRY("cu_per_simd_array", agent_info.cu_per_simd_array),
@@ -741,6 +742,9 @@ get_agent_property(std::string_view property, const rocprofiler_agent_t& agent)
         GEN_MAP_ENTRY("num_sdma_queues_per_engine", agent_info.num_sdma_queues_per_engine),
         GEN_MAP_ENTRY("num_cp_queues", agent_info.num_cp_queues),
         GEN_MAP_ENTRY("max_engine_clk_ccompute", agent_info.max_engine_clk_ccompute),
+        GEN_MAP_ENTRY("max_engine_clk_fcompute", agent_info.max_engine_clk_fcompute),
+        GEN_MAP_ENTRY("fw_version", agent_info.fw_version.ui32.uCode),
+        GEN_MAP_ENTRY("sdma_fw_version", agent_info.sdma_fw_version.uCodeSDMA),
     });
 
     return CHECK_NOTNULL(_props)->wlock([&property, &agent](map_t& props) -> int64_t {
