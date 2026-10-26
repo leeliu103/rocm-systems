@@ -175,7 +175,7 @@ def format_yaml_scalar(value: str):
 
 def normalize_docs_section_name(arch_name: str, section_name: str) -> str:
     """Apply docs-only section name cleanup for selected architectures."""
-    if not is_gfx115x_ip_variant(arch_name):
+    if not (is_gfx115x_ip_variant(arch_name) or arch_name == "gfx1201"):
         return section_name
 
     replacements = {
@@ -188,7 +188,7 @@ def normalize_docs_section_name(arch_name: str, section_name: str) -> str:
 
 def normalize_docs_metric_name(arch_name: str, metric_name: str) -> str:
     """Apply docs-only metric name cleanup for selected architectures."""
-    if not is_gfx115x_ip_variant(arch_name):
+    if not (is_gfx115x_ip_variant(arch_name) or arch_name == "gfx1201"):
         return metric_name
 
     replacements = {
@@ -297,6 +297,16 @@ def panel_id_to_section(arch_name: str, table_id: int | None) -> str | None:
     """Resolve documentation section name for a metric_table id (arch-specific)."""
     if table_id is None:
         return None
+    if arch_name == "gfx1201":
+        return {
+            306: "Memory chart - GL1C Interface",
+            307: "Memory chart - GL1C-GL2 Interface",
+            901: "GL0 Clock Activity",
+            1101: "GL1C Interface Activity",
+            1102: "GL1C Request Statistics",
+            1104: "GL1C-GL2 Interface",
+            1105: "GL1C Interface Stalls",
+        }.get(table_id, RDNA35_PANEL_ID_TO_SECTION_BY_ARCH.get(table_id))
     if is_gfx115x_ip_variant(arch_name):
         return RDNA35_PANEL_ID_TO_SECTION_BY_ARCH.get(table_id)
     if is_gfx1250_arch(arch_name):
