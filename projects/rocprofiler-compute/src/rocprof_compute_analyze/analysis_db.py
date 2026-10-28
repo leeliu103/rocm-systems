@@ -1026,6 +1026,10 @@ class db_analysis(OmniAnalyze_Base):
     ) -> None:
         """Evaluate arch-specific built-in variables referenced by expressions
         (numActiveCUs, etc.). Mutates ``sys_info`` in place."""
+        # Match the CLI evaluator's single-die default for RDNA sysinfo.
+        if pd.isna(sys_info.get("num_xcd")):
+            sys_info["num_xcd"] = 1
+
         gpu_series = mi_gpu_specs.get_gpu_series(sys_info["gpu_arch"])
         _, expression_builtin_vars = extract_counters_and_variables(
             "\n".join(expressions), gpu_series

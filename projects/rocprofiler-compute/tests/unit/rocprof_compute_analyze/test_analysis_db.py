@@ -683,6 +683,33 @@ def test_calc_builtin_vars_uses_gfx1250_gui_active_sum():
 # =============================================================================
 
 
+@pytest.mark.parametrize("gpu_arch", ["gfx1150", "gfx1201"])
+@pytest.mark.parametrize("xcd_fields", [{}, {"num_xcd": None}, {"num_xcd": np.nan}])
+def test_calc_dataframe_expressions_rdna_per_cycle_without_xcd(gpu_arch, xcd_fields):
+    """RDNA per-cycle exports remain defined when sysinfo omits the XCD count."""
+    pmc_df = pd.DataFrame({
+        "GRBM_GUI_ACTIVE": [100, 200],
+        "SQ_INSTS_VALU_sum": [200, 600],
+    })
+    sys_info = {"gpu_arch": gpu_arch, **xcd_fields}
+    expression_df = pd.DataFrame({
+        "metric_id": ["7.5.2"] * 3,
+        "value_name": ["Avg", "Min", "Max"],
+        "value": [
+            "to_sum(raw_pmc_df['SQ_INSTS_VALU_sum']) / "
+            "to_sum(ammolite__GRBM_GUI_ACTIVE_PER_XCD)",
+            "to_min(raw_pmc_df['SQ_INSTS_VALU_sum'] / "
+            "ammolite__GRBM_GUI_ACTIVE_PER_XCD)",
+            "to_max(raw_pmc_df['SQ_INSTS_VALU_sum'] / "
+            "ammolite__GRBM_GUI_ACTIVE_PER_XCD)",
+        ],
+    })
+
+    result = db_analysis.calc_dataframe_expressions(pmc_df, sys_info, expression_df)
+
+    assert result.tolist() == pytest.approx([8 / 3, 2, 3])
+
+
 def test_calc_dataframe_expressions_applies_evaluate_to_rows():
     """Test that expressions are evaluated for each row of expression_df."""
     pmc_df = pd.DataFrame({
