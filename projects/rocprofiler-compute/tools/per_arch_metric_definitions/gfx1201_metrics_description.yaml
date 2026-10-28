@@ -239,12 +239,12 @@ SPI Utilization:
     unit: Percent
 Wave Dispatch Statistics:
   Compute Wave Dispatches:
-    plain: Total number of compute wavefronts dispatched by the Shader Processor Input. This represents the work scheduled for execution on the shader engines. Compare with completed waves to identify dispatch-related bottlenecks.
-    rst: Total number of compute wavefronts dispatched by the Shader Processor Input. This represents the work scheduled for execution on the shader engines. Compare with completed waves to identify dispatch-related bottlenecks.
+    plain: Compute wavefronts launched during the kernel, summed across SQ instances and divided by the selected normalization unit.
+    rst: Compute wavefronts launched during the kernel, summed across SQ instances and divided by the selected normalization unit.
     unit: Count per Normalization Unit
   Wave Dispatch Rate:
-    plain: Average wavefronts dispatched per GPU active cycle. Values greater than one indicate parallel dispatch across multiple shader engines. Low dispatch rates may indicate workload submission bottlenecks or insufficient parallelism in the application.
-    rst: Average wavefronts dispatched per GPU active cycle. Values greater than one indicate parallel dispatch across multiple shader engines. Low dispatch rates may indicate workload submission bottlenecks or insufficient parallelism in the application.
+    plain: Compute wavefronts launched across SQ instances per GPU active cycle.
+    rst: Compute wavefronts launched across SQ instances per GPU active cycle.
     unit: Waves/cycle
 Wavefront Launch Stats:
   Grid Size:

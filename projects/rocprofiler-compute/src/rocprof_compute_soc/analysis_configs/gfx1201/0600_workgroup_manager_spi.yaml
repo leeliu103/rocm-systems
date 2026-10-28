@@ -29,19 +29,19 @@ Panel Config:
         unit: Unit
       metric:
         Compute Wave Dispatches:
-          avg: SUM(SPI_CSN_WAVE) / SUM($denom)
-          min: MIN(SPI_CSN_WAVE / $denom)
-          max: MAX(SPI_CSN_WAVE / $denom)
+          avg: SUM(SQ_WAVES_sum) / SUM($denom)
+          min: MIN(SQ_WAVES_sum / $denom)
+          max: MAX(SQ_WAVES_sum / $denom)
           unit: (Count + $normUnit)
         Wave Dispatch Rate:
-          avg: SUM(SPI_CSN_WAVE) / SUM(GRBM_GUI_ACTIVE)
-          min: MIN(SPI_CSN_WAVE / GRBM_GUI_ACTIVE)
-          max: MAX(SPI_CSN_WAVE / GRBM_GUI_ACTIVE)
+          avg: SUM(SQ_WAVES_sum) / SUM(GRBM_GUI_ACTIVE)
+          min: MIN(SQ_WAVES_sum / GRBM_GUI_ACTIVE)
+          max: MAX(SQ_WAVES_sum / GRBM_GUI_ACTIVE)
           unit: Waves/cycle
   metrics_description:
     SPI Busy: >-
       Percentage of GPU active cycles where the Shader Processor Input is busy dispatching wavefronts. High SPI busy indicates active workload dispatch. Low values may suggest insufficient parallelism or dispatch bottlenecks limiting GPU utilization.
     Compute Wave Dispatches: >-
-      Total number of compute wavefronts dispatched by the Shader Processor Input. This represents the work scheduled for execution on the shader engines. Compare with completed waves to identify dispatch-related bottlenecks.
+      Compute wavefronts launched during the kernel, summed across SQ instances and divided by the selected normalization unit.
     Wave Dispatch Rate: >-
-      Average wavefronts dispatched per GPU active cycle. Values greater than one indicate parallel dispatch across multiple shader engines. Low dispatch rates may indicate workload submission bottlenecks or insufficient parallelism in the application.
+      Compute wavefronts launched across SQ instances per GPU active cycle.
