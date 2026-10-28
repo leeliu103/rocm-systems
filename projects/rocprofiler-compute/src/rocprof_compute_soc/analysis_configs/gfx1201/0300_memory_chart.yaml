@@ -1,0 +1,215 @@
+# RDNA4 (gfx1201)
+Panel Config:
+  id: 300
+  title: Memory Chart
+  description: RDNA4 request counts, cache hit rates and interface traffic. Navi4x has no GL1 cache; GL1C counters describe the request interface. GL2C/EA bandwidth counts logical request bytes and must not be interpreted as physical DRAM bandwidth.
+  data source:
+  - metric_table:
+      id: 301
+      title: Instruction Cache
+      cli_style: mem_chart
+      tui_style: mem_chart
+      comparable: false
+      header:
+        metric: Metric
+        value: Value
+        unit: Unit
+      metric:
+        ICache Requests:
+          value: SUM(SQC_ICACHE_REQ_sum) / SUM($denom)
+          unit: (Requests + $normUnit)
+        ICache Hit Rate:
+          value: 100 * SUM(SQC_ICACHE_HITS_sum) / SUM(SQC_ICACHE_HITS_sum + SQC_ICACHE_MISSES_sum)
+          unit: Percent
+        ICache-GL1 Request Rate:
+          value: SUM(SQC_TC_INST_REQ_sum) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Requests/s
+  - metric_table:
+      id: 302
+      title: Scalar Data Cache
+      cli_style: mem_chart
+      tui_style: mem_chart
+      comparable: false
+      header:
+        metric: Metric
+        value: Value
+        unit: Unit
+      metric:
+        DCache Requests:
+          value: SUM(SQC_DCACHE_REQ_sum) / SUM($denom)
+          unit: (Requests + $normUnit)
+        DCache Hit Rate:
+          value: 100 * SUM(SQC_DCACHE_HITS_sum) / SUM(SQC_DCACHE_HITS_sum + SQC_DCACHE_MISSES_sum)
+          unit: Percent
+        DCache-GL1 Request Rate:
+          value: SUM(SQC_TC_DATA_READ_REQ_sum) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Requests/s
+  - metric_table:
+      id: 303
+      title: TCP Cache (GL0 Vector Cache)
+      cli_style: mem_chart
+      tui_style: mem_chart
+      comparable: false
+      header:
+        metric: Metric
+        value: Value
+        unit: Unit
+      metric:
+        TCP Read Requests:
+          value: SUM(TCP_REQ_READ_sum) / SUM($denom)
+          unit: (Requests + $normUnit)
+        TCP Write Requests:
+          value: SUM(TCP_REQ_WRITE_sum) / SUM($denom)
+          unit: (Requests + $normUnit)
+        GL0 Cache Hit Rate (TCP Cache):
+          value: 100 * SUM(TCP_REQ_sum - TCP_REQ_MISS_sum) / SUM(TCP_REQ_sum)
+          unit: Percent
+        GL0 Request Rate (TCP Cache):
+          value: SUM(TCP_REQ_sum) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Requests/s
+  - metric_table:
+      id: 304
+      title: LDS (Local Data Share)
+      cli_style: mem_chart
+      tui_style: mem_chart
+      comparable: false
+      header:
+        metric: Metric
+        value: Value
+        unit: Unit
+      metric:
+        LDS Instructions:
+          value: SUM(SQ_INSTS_LDS_sum) / SUM($denom)
+          unit: (Count + $normUnit)
+        LDS Bank Conflict Cycle Ratio:
+          value: 100 * SUM(SQC_LDS_BANK_CONFLICT_sum) / SUM(SQC_LDS_IDX_ACTIVE_sum)
+          unit: Percent
+        LDS Indexed-active Cycles:
+          value: SUM(SQC_LDS_IDX_ACTIVE_sum) / SUM($denom)
+          unit: (Count + $normUnit)
+        LDS Bank Conflict Cycles:
+          value: SUM(SQC_LDS_BANK_CONFLICT_sum) / SUM($denom)
+          unit: (Count + $normUnit)
+  - metric_table:
+      id: 305
+      title: TCP-GL1 Interface
+      cli_style: mem_chart
+      tui_style: mem_chart
+      comparable: false
+      header:
+        metric: Metric
+        value: Value
+        unit: Unit
+      metric:
+        TCP-GL1 Read Bandwidth:
+          value: SUM(TCP_GL1_REQ_READ_64B_sum * 64 + TCP_GL1_REQ_READ_128B_sum * 128) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Bytes/s
+        TCP-GL1 Write Request Rate:
+          value: SUM(TCP_GL1_REQ_WRITE_sum) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Requests/s
+  - metric_table:
+      id: 306
+      title: GL1C Interface
+      cli_style: mem_chart
+      tui_style: mem_chart
+      comparable: false
+      header:
+        metric: Metric
+        value: Value
+        unit: Unit
+      metric:
+        GL1C Interface Busy:
+          value: 100 * SUM(GL1C_BUSY_sum) / SUM(GL1C_CYCLE_sum)
+          unit: Percent
+        GL1C Request Credit Stall:
+          value: 100 * SUM(GL1C_STALL_GL1_GL2_REQ_CREDITS_sum) / SUM(GL1C_CYCLE_sum)
+          unit: Percent
+  - metric_table:
+      id: 307
+      title: GL1C-GL2 Interface
+      cli_style: mem_chart
+      tui_style: mem_chart
+      comparable: false
+      header:
+        metric: Metric
+        value: Value
+        unit: Unit
+      metric:
+        GL1-GL2 Read Bandwidth:
+          value: SUM(GL1C_GL2_REQ_READ_32B_sum * 32 + GL1C_GL2_REQ_READ_64B_sum * 64 + GL1C_GL2_REQ_READ_128B_sum * 128 + GL1C_GL2_REQ_READ_256B_sum * 256) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Bytes/s
+        GL1-GL2 Write Bandwidth:
+          value: SUM(GL1C_GL2_REQ_WRITE_32B_sum * 32 + GL1C_GL2_REQ_WRITE_64B_sum * 64 + GL1C_GL2_REQ_WRITE_128B_sum * 128 + GL1C_GL2_REQ_WRITE_256B_sum * 256) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Bytes/s
+  - metric_table:
+      id: 308
+      title: GL2 Cache (L2)
+      cli_style: mem_chart
+      tui_style: mem_chart
+      comparable: false
+      header:
+        metric: Metric
+        value: Value
+        unit: Unit
+      metric:
+        GL2 Cache Utilization:
+          value: 100 * SUM(GL2C_BUSY_sum) / SUM(GL2C_CYCLE_sum)
+          unit: Percent
+        GL2 Cache Hit Rate:
+          value: 100 * SUM(GL2C_HIT_sum) / SUM(GL2C_HIT_sum + GL2C_MISS_sum)
+          unit: Percent
+        GL2-Fabric Read BW:
+          value: SUM(GL2C_EA_RDREQ_32B_sum * 32 + GL2C_EA_RDREQ_64B_sum * 64 + GL2C_EA_RDREQ_128B_sum * 128 + GL2C_EA_RDREQ_256B_sum * 256 + GL2C_EA_RDREQ_COMPRESSED_128B_sum * 128 + GL2C_EA_RDREQ_COMPRESSED_256B_sum * 256) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Bytes/s
+        GL2-Fabric Write BW:
+          value: SUM(GL2C_EA_WRREQ_32B_sum * 32 + GL2C_EA_WRREQ_64B_sum * 64 + GL2C_EA_WRREQ_128B_sum * 128 + GL2C_EA_WRREQ_256B_sum * 256 + GL2C_EA_WRREQ_COMPRESSED_128B_sum * 128 + GL2C_EA_WRREQ_COMPRESSED_256B_sum * 256) / (SUM(End_Timestamp - Start_Timestamp) / 1e9)
+          unit: Bytes/s
+  metrics_description:
+    ICache Requests: >-
+      Instruction cache (SQC ICache) requests per normalization unit. This is a request count; no fixed number of bytes per request is assumed.
+    ICache Hit Rate: >-
+      Percentage of instruction cache accesses that are serviced from cache without fetching from the GL1C interface. High hit rates indicate good instruction locality. Low hit rates may indicate large kernels exceeding instruction cache capacity or divergent branches.
+    DCache Requests: >-
+      Scalar data cache (SQC DCache) requests per normalization unit. This is a request count; no fixed number of bytes per request is assumed.
+    DCache Hit Rate: >-
+      Percentage of scalar data cache accesses that hit in cache. High hit rates indicate efficient reuse of constant and uniform data. Low hit rates may indicate excessive unique constant data or poor temporal locality.
+    TCP Read Requests: >-
+      Read requests received by the GL0 vector cache per normalization unit. This is a request count, not a byte count.
+    TCP Write Requests: >-
+      Write requests received by the GL0 vector cache per normalization unit. This is a request count, not a byte count.
+    GL0 Cache Hit Rate (TCP Cache): >-
+      Percentage of GL0 vector cache (TCP Cache) requests serviced from cache. TCP Cache is the first-level cache for vector memory operations. Higher hit rates reduce traffic to the GL1C interface and lower memory access latency for vector operations.
+    GL2 Cache Utilization: >-
+      Percentage of GL2 cache cycles reported busy, aggregated across GL2 channels. High values indicate sustained traffic through the last GPU cache level.
+    GL2 Cache Hit Rate: >-
+      Percentage of GL2 tag lookups counted as hits among hit and miss outcomes. GL2 is the last GPU cache level represented by this panel.
+    ICache-GL1 Request Rate: >-
+      Hardware request count per second. No fixed number of bytes per request is assumed.
+    DCache-GL1 Request Rate: >-
+      Hardware request count per second. No fixed number of bytes per request is assumed.
+    GL0 Request Rate (TCP Cache): >-
+      Hardware request count per second. No fixed number of bytes per request is assumed.
+    LDS Instructions: >-
+      Issued LDS instructions, including FLAT instructions that resolve to LDS. The instruction count does not distinguish read bytes from write bytes.
+    LDS Bank Conflict Cycle Ratio: >-
+      LDS bank-conflict cycle counter divided by the indexed-active cycle counter. This compares hardware cycle counts; it is not the fraction of memory accesses that conflict, or a measure of LDS peak utilization.
+    LDS Indexed-active Cycles: >-
+      Unscaled hardware cycle counter for indexed LDS operations, summed across WGPs. No conversion to bandwidth or percent of elapsed GPU cycles is applied.
+    LDS Bank Conflict Cycles: >-
+      Unscaled hardware cycle counter for LDS bank conflicts, summed across WGPs. No conversion to a count of memory accesses is applied.
+    TCP-GL1 Read Bandwidth: >-
+      Read request bytes per second from the explicit 64-byte and 128-byte TCP-to-GL1C read request counters.
+    TCP-GL1 Write Request Rate: >-
+      TCP-to-GL1C write requests per second. The event does not encode a fixed byte size.
+    GL1C Interface Busy: >-
+      Percentage of GL1C interface cycles reported busy. Navi4x has no GL1 cache; this is interface activity, not cache utilization.
+    GL1C Request Credit Stall: >-
+      Percentage of GL1C interface cycles stalled for GL2 request credits.
+    GL1-GL2 Read Bandwidth: >-
+      Request bytes per second on the GL1C-to-GL2 interface, weighted by the explicit 32, 64, 128 and 256-byte bins.
+    GL1-GL2 Write Bandwidth: >-
+      Request bytes per second on the GL1C-to-GL2 interface, weighted by the explicit 32, 64, 128 and 256-byte bins.
+    GL2-Fabric Read BW: >-
+      Logical request bytes per second at the GL2C/EA interface, including compressed 128-byte and 256-byte requests at their logical size. This is not a measurement of physical DRAM bytes; writebacks may occur outside the dispatch interval.
+    GL2-Fabric Write BW: >-
+      Logical request bytes per second at the GL2C/EA interface, including compressed 128-byte and 256-byte requests at their logical size. This is not a measurement of physical DRAM bytes; writebacks may occur outside the dispatch interval.

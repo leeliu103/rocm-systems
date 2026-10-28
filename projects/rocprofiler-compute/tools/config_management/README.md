@@ -26,8 +26,12 @@ rocprofiler-compute/
 │       ├── gfx940/
 │       ├── gfx950/
 │       ├── gfx115x/                     # RDNA 3.5 shared analysis configs
+│       ├── gfx1201/                     # RDNA 4 analysis configs
+│       ├── gfx1250/
 │       ├── gfx9_config_template.yaml    # CDNA (gfx9) panel contract
-│       └── gfx11_config_template.yaml   # RDNA 3.5 (gfx115*) panel contract
+│       ├── gfx11_config_template.yaml   # RDNA 3.5 (gfx115*) panel contract
+│       ├── gfx12_config_template.yaml   # GFX12 (gfx12xx) panel contract
+│       └── gfx1201_config_template.yaml # Per-arch override for gfx1201
 │
 └── tools/config_management/
     ├── master_config_workflow_script.py
@@ -47,6 +51,14 @@ rocprofiler-compute/
 analysis_configs/<arch>/*.yaml
 ```
 - Must conform strictly to the template schema
+- Each arch dir is validated against `analysis_configs/<arch>_config_template.yaml`
+  when that file exists (a per-arch override, e.g. `gfx1201_config_template.yaml`);
+  otherwise against its family template (`gfx9`, `gfx11` for `gfx115*`, or
+  `gfx12` for `gfx12xx`). Arches listed in `PER_ARCH_TEMPLATES` in
+  `verify_against_config_template.py` (currently `gfx1201`) require their
+  per-arch template: if it is missing, validation fails with a
+  "template missing" error naming the file instead of falling back to the
+  family template
 - Are edited in-place using ruamel.yaml round-trip mode
 
 ### Hash Database

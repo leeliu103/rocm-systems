@@ -76,6 +76,17 @@ architectures:
   gfx950:
     same_bucket_priority_metric_ids: {}
 
+  # gfx1201: keep GPU Busy and Wave Life operands in the same pass so each
+  # ratio uses counters from the same kernel replay.
+  gfx1201:
+    same_bucket_priority_metric_ids:
+      # 17.1.0 = panel 1700, table 1701 (GRBM), metric index 0.
+      "17.1.0":
+        name: "GPU Busy"
+      # 7.4.0 = panel 700, table 704 (Wave Life), metric index 0.
+      "7.4.0":
+        name: "Wave Life"
+
   # gfx1250: 17 perfmon passes at full counter set. Priority metrics steer
   # metric-aware coalescing without increasing pass count (verified via
   # soc_base._allocate_perfmon_counter_files simulation).

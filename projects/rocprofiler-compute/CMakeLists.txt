@@ -1002,7 +1002,8 @@ add_test(
     NAME test_soc_base
     COMMAND
         ${PYTHON_TEST_COMMAND} -m pytest --junitxml=tests/test_soc_base.xml ${COV_OPTION}
-        tests/unit/rocprof_compute_soc/test_soc_base.py ${WORKING_DIR_OPTION}
+        tests/unit/rocprof_compute_soc/test_soc_base.py
+        tests/unit/rocprof_compute_soc/test_soc_gfx1201.py ${WORKING_DIR_OPTION}
 )
 
 # -----------------------------------
@@ -1014,6 +1015,19 @@ add_test(
     COMMAND
         ${PYTHON_TEST_COMMAND} -m pytest --junitxml=tests/test_tty.xml ${COV_OPTION}
         tests/unit/utils/test_tty.py ${WORKING_DIR_OPTION}
+)
+
+# -----------------------------------
+# Config management tool unit tests
+# -----------------------------------
+
+add_test(
+    NAME test_verify_against_config_template
+    COMMAND
+        ${PYTHON_TEST_COMMAND} -m pytest
+        --junitxml=tests/test_verify_against_config_template.xml ${COV_OPTION}
+        tools/config_management/test_verify_against_config_template.py
+        ${WORKING_DIR_OPTION}
 )
 
 if(TARGET test-rocprofiler-compute-tool)
@@ -1145,6 +1159,7 @@ if(${ENABLE_COVERAGE})
         test_rocprofv3_avail_interface
         test_soc_base
         test_tty
+        test_verify_against_config_template
         test_file_io
         test_utils_profile_csv
         test_csv_compression
@@ -1400,6 +1415,15 @@ if(INSTALL_TESTS)
         FILES_MATCHING
         PATTERN "*.py"
         PATTERN "__pycache__" EXCLUDE
+    )
+    install(
+        FILES
+            tools/config_management/test_verify_against_config_template.py
+            tools/config_management/verify_against_config_template.py
+            tools/config_management/metric_description_manager.py
+            tools/config_management/utils_ruamel.py
+        DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/${PROJECT_NAME}/tools/config_management
+        COMPONENT tests
     )
     # The conjugate_gradient driver resolves its kernel libraries relative to
     # its own path, so the whole directory installs as a unit.

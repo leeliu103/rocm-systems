@@ -3,11 +3,14 @@
 
 """Unit tests for utils/metrics/metric_evaluator.py."""
 
+from pathlib import Path
 from unittest.mock import patch
 
+import common
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
 from utils.metrics.expression import (
     build_eval_string,
@@ -20,6 +23,72 @@ from utils.utils_counter_defs import SUPPORTED_DENOM, UNIT_COUNTER
 # =============================================================================
 # Tests for utils.metrics.metric_evaluator
 # =============================================================================
+
+
+@pytest.mark.parametrize("size", [32, 64, 128, 256])
+@pytest.mark.parametrize(
+    "filename, table_id, metric_name, field, counter_template",
+    [
+        (
+            "1300_l2_cache.yaml",
+            1303,
+            "GL2 Uncompressed Read BW",
+            "avg",
+            "GL2C_READ_{}_REQ_sum",
+        ),
+        (
+            "1300_l2_cache.yaml",
+            1303,
+            "GL2 Write Request BW",
+            "avg",
+            "GL2C_WRITE_{}_REQ_sum",
+        ),
+        (
+            "0300_memory_chart.yaml",
+            307,
+            "GL1-GL2 Read Bandwidth",
+            "value",
+            "GL1C_GL2_REQ_READ_{}B_sum",
+        ),
+        (
+            "0300_memory_chart.yaml",
+            307,
+            "GL1-GL2 Write Bandwidth",
+            "value",
+            "GL1C_GL2_REQ_WRITE_{}B_sum",
+        ),
+    ],
+)
+def test_gfx1201_bandwidth_uses_request_bytes(
+    filename, table_id, metric_name, field, counter_template, size
+):
+    """Each hardware size bin contributes bytes, summed over dispatch durations."""
+    path = (
+        Path(common.SRC)
+        / "rocprof_compute_soc"
+        / "analysis_configs"
+        / "gfx1201"
+        / filename
+    )
+    panel = yaml.safe_load(path.read_text(encoding="utf-8"))["Panel Config"]
+    metric = next(
+        entry["metric_table"]["metric"][metric_name]
+        for entry in panel["data source"]
+        if entry["metric_table"]["id"] == table_id
+    )
+    columns = {
+        counter_template.format(bin_size): (
+            [2.0, 3.0] if bin_size == size else [0.0, 0.0]
+        )
+        for bin_size in (32, 64, 128, 256)
+    }
+    columns.update({"Start_Timestamp": [0.0, 0.0], "End_Timestamp": [1e9, 2e9]})
+    evaluator = MetricEvaluator(pd.DataFrame(columns), {}, {})
+
+    assert metric["unit"] == "Bytes/s"
+    assert evaluator.eval_expression(build_eval_string(metric[field])) == pytest.approx(
+        5 * size / 3
+    )
 
 
 class TestMetricEvaluator:

@@ -275,6 +275,10 @@ Roofline micro-benchmark support varies by :ref:`SoC family <def-soc>` independe
      - ✅
      - ✅
      - Full feature support; roofline benchmarking for gfx1150 and gfx1152 was added in ROCm Compute Profiler 3.7.0, with the gfx1151 (Strix Halo) gap closed in 3.8.0. Uses Wave Matrix Multiply Accumulate (WMMA) in place of MFMA.
+   * - AMD Radeon RX 9070 Series / Radeon AI PRO R9700 (RDNA4, gfx1201)
+     - ✅
+     - ❌
+     - Counter profiling and analysis use the RDNA panel layout. Speed-of-Light reports achieved values only, with no peak or percentage of peak. VALU throughput is reported as instructions rather than FLOPs. Roofline and GCEA analysis are not available.
    * - AMD Instinct MI50, MI60 (Vega 20)
      - ❌
      - ❌

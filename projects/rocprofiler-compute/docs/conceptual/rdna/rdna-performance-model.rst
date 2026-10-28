@@ -1,6 +1,6 @@
 .. meta::
    :description: Understand the AMD RDNA architectures and hardware blocks with ROCm Compute Profiler to analyze and optimize performance on AMD Ryzen APUs.
-   :keywords: ROCm Compute Profiler, RDNA, RDNA3, gfx115x, Radeon, ROCm, Ryzen
+   :keywords: ROCm Compute Profiler, RDNA, RDNA3, RDNA4, gfx115x, gfx1201, Radeon, ROCm, Ryzen
 
 .. _rdna-performance-model:
 
@@ -87,3 +87,32 @@ Additional reference material
 .. Note::
 
    ROCm Compute Profiler currently has limited support for WMMA on gfx115x.
+
+.. _rdna4-gfx1201-differences:
+
+RDNA4 (gfx1201) differences
+==============================
+
+ROCm Compute Profiler also supports AMD Radeon RX 9070 Series and Radeon AI PRO
+R9700 GPUs (RDNA4, gfx1201). These GPUs use the same RDNA panel layout as
+gfx115x, with architecture-specific counter definitions. The pages above
+describe gfx115x; the following differences apply to gfx1201:
+
+* **GL1C is a request interface, not a cache.** gfx1201 has no GL1 cache. The
+  GL1C panel and Memory Chart report interface activity (busy cycles, request
+  credit stalls, and TCP-to-GL1C and GL1C-to-GL2 request traffic) rather than
+  GL1 cache hit rates or cache utilization.
+
+* **No GCEA panel.** gfx1201 has no GCEA, System Arbiter (SysArb), or DRAM byte
+  bandwidth metrics. The Memory Chart ends at the GL2-to-fabric edges, which
+  measure logical request bytes at the GL2C interface, not physical GDDR
+  traffic.
+
+* **No roofline.** Roofline analysis is not available for gfx1201.
+
+* **Speed-of-Light reports achieved values only.** The System Speed-of-Light
+  table has no peak or percentage-of-peak columns.
+
+* **Compute metrics are instruction rates.** VALU throughput, including the
+  ``compute_thruput_flops`` profiling set, is reported as instruction rates and
+  WMMA instruction counts, not FLOPs.

@@ -12,6 +12,7 @@ import utils.specs as specs
 from utils.specs import (
     MachineSpecs,
     MachineSpecsCDNA,
+    MachineSpecsRDNA4,
     MachineSpecsRDNA35,
     generate_machine_specs,
     spec_family_for_arch,
@@ -160,10 +161,11 @@ def test_kw_only_rejects_positional_arguments():
     "series, expected_cls",
     [
         ("RDNA3.5", MachineSpecsRDNA35),
+        ("RDNA4", MachineSpecsRDNA4),
         ("mi300", MachineSpecsCDNA),
         (None, MachineSpecsCDNA),
     ],
-    ids=["rdna35", "cdna", "unknown"],
+    ids=["rdna35", "rdna4", "cdna", "unknown"],
 )
 def test_spec_family_for_arch_dispatch(series, expected_cls):
     with patch.object(specs.mi_gpu_specs, "get_gpu_series", return_value=series):
@@ -212,6 +214,36 @@ def test_rdna35_finalize_soc_fields(
 
 @pytest.mark.misc
 @pytest.mark.parametrize(
+    "vram_info, expected_channels",
+    [
+        ({}, None),
+        ({"vram_bit_width": 0}, None),
+        ({"vram_bit_width": 256}, "8"),
+    ],
+    ids=["missing_width", "zero_width", "256_bit_bus"],
+)
+def test_rdna4_memory_channels_follow_vram_bus_width(vram_info, expected_channels):
+    """L2 bank count must not substitute for the discrete GPU's memory bus width."""
+    spec = MachineSpecsRDNA4(
+        gpu_arch="gfx1201",
+        gpu_model="rdna4_rx9070",
+        se_per_gpu="4",
+        sa_per_se="2",
+        l2_banks="32",
+    )
+    spec.finalize_soc_fields({
+        "num_compute_units": 64,
+        "gpu_cache_info": {"cache": []},
+        **vram_info,
+    })
+
+    assert spec.num_memory_channels == expected_channels
+    assert spec.num_gl1c == "8"
+    assert spec.total_l2_chan == "32"
+
+
+@pytest.mark.misc
+@pytest.mark.parametrize(
     "memory_partition, expected_channels",
     [
         ("NPS1", "128"),
@@ -241,22 +273,24 @@ def test_cdna_hbm_channels_nps_divisors(memory_partition, expected_channels):
 
 
 @pytest.mark.misc
-def test_reconstruct_specs_from_sysinfo_round_trip():
+@pytest.mark.parametrize(
+    "arch, expected_cls",
+    [("gfx1151", MachineSpecsRDNA35), ("gfx1201", MachineSpecsRDNA4)],
+)
+def test_reconstruct_specs_from_sysinfo_round_trip(arch, expected_cls):
     """generate_machine_specs reconstructs the arch-specific subclass from a
     saved sysinfo dict.
     """
     sysinfo = {
         "version": "3",
-        "gpu_arch": "gfx1151",
+        "gpu_arch": arch,
         "num_gl1c": "8",
         "num_memory_channels": "8",
     }
-    with patch.object(
-        specs, "get_version", return_value={"version": "3.0.0"}
-    ), patch.object(specs.mi_gpu_specs, "get_gpu_series", return_value="RDNA3.5"):
+    with patch.object(specs, "get_version", return_value={"version": "3.0.0"}):
         spec = generate_machine_specs(None, sysinfo)
 
-    assert isinstance(spec, MachineSpecsRDNA35)
+    assert isinstance(spec, expected_cls)
     assert spec.num_gl1c == "8"
     assert spec.num_memory_channels == "8"
 

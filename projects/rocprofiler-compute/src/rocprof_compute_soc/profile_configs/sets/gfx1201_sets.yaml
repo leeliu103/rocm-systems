@@ -1,0 +1,28 @@
+sets:
+- title: Compute Throughput (Instruction Rates)
+  set_option: compute_thruput_flops
+  description: VALU instruction rates and WMMA instruction counts. These are instruction counts, not
+    FLOPs; no FLOP conversion is applied.
+  metric:
+  - 2.1.0: VALU Instruction Rate
+  - 2.1.1: FP64 VALU Instruction Rate
+  - 7.5.6: Instructions - WMMA (VEC32)
+- title: Memory Read Throughput
+  set_option: mem_thruput
+  description: Client-side uncompressed GL2 reads and GL1C/TCP interface read traffic. These byte
+    counts are measured at different interfaces and are not physical DRAM bandwidth.
+  metric:
+  - 2.1.11: GL2 Uncompressed Read BW
+  - 2.1.10: GL1C-GL2 Read BW
+  - 3.5.0: TCP-GL1 Read Bandwidth
+- title: Launch Stats
+  set_option: launch_stats
+  description: Kernel launch dimensions, wave counts and allocated resources.
+  metric:
+  - 7.2.0: Grid Size
+  - 7.2.1: Workgroup Size
+  - 7.3.0: Dispatched Waves
+  - 7.2.2: VGPRs
+  - 7.2.3: SGPRs
+  - 7.2.4: LDS Allocation
+  - 7.2.5: Scratch Allocation

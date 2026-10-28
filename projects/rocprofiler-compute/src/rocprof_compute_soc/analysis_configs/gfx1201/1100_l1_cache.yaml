@@ -1,0 +1,116 @@
+# RDNA4 (gfx1201)
+Panel Config:
+  id: 1100
+  title: GL1C Interface
+  data source:
+  - metric_table:
+      id: 1101
+      title: GL1C Interface Activity
+      header:
+        metric: Metric
+        avg: Avg
+        min: Min
+        max: Max
+        unit: Unit
+      metric:
+        GL1C Interface Busy:
+          avg: 100 * SUM(GL1C_BUSY_sum) / SUM(GL1C_CYCLE_sum)
+          min: 100 * MIN(GL1C_BUSY_sum / GL1C_CYCLE_sum)
+          max: 100 * MAX(GL1C_BUSY_sum / GL1C_CYCLE_sum)
+          unit: Percent
+        GL1C Interface Starve:
+          avg: 100 * SUM(GL1C_STARVE_sum) / SUM(GL1C_CYCLE_sum)
+          min: 100 * MIN(GL1C_STARVE_sum / GL1C_CYCLE_sum)
+          max: 100 * MAX(GL1C_STARVE_sum / GL1C_CYCLE_sum)
+          unit: Percent
+  - metric_table:
+      id: 1102
+      title: GL1C Request Statistics
+      header:
+        metric: Metric
+        avg: Avg
+        min: Min
+        max: Max
+        unit: Unit
+      metric:
+        Total Requests:
+          avg: SUM(GL1C_REQ_sum) / SUM($denom)
+          min: MIN(GL1C_REQ_sum / $denom)
+          max: MAX(GL1C_REQ_sum / $denom)
+          unit: (Count + $normUnit)
+        Read Requests:
+          avg: SUM(GL1C_REQ_READ_sum) / SUM($denom)
+          min: MIN(GL1C_REQ_READ_sum / $denom)
+          max: MAX(GL1C_REQ_READ_sum / $denom)
+          unit: (Count + $normUnit)
+        Write Requests:
+          avg: SUM(GL1C_REQ_WRITE_sum) / SUM($denom)
+          min: MIN(GL1C_REQ_WRITE_sum / $denom)
+          max: MAX(GL1C_REQ_WRITE_sum / $denom)
+          unit: (Count + $normUnit)
+  - metric_table:
+      id: 1104
+      title: GL1C-GL2 Interface
+      header:
+        metric: Metric
+        avg: Avg
+        min: Min
+        max: Max
+        unit: Unit
+      metric:
+        GL2 Read Requests:
+          avg: SUM(GL1C_GL2_REQ_READ_sum) / SUM($denom)
+          min: MIN(GL1C_GL2_REQ_READ_sum / $denom)
+          max: MAX(GL1C_GL2_REQ_READ_sum / $denom)
+          unit: (Count + $normUnit)
+        GL2 Read 128B Requests:
+          avg: SUM(GL1C_GL2_REQ_READ_128B_sum) / SUM($denom)
+          min: MIN(GL1C_GL2_REQ_READ_128B_sum / $denom)
+          max: MAX(GL1C_GL2_REQ_READ_128B_sum / $denom)
+          unit: (Count + $normUnit)
+        GL2 Write Requests:
+          avg: SUM(GL1C_GL2_REQ_WRITE_sum) / SUM($denom)
+          min: MIN(GL1C_GL2_REQ_WRITE_sum / $denom)
+          max: MAX(GL1C_GL2_REQ_WRITE_sum / $denom)
+          unit: (Count + $normUnit)
+  - metric_table:
+      id: 1105
+      title: GL1C Interface Stalls
+      header:
+        metric: Metric
+        avg: Avg
+        min: Min
+        max: Max
+        unit: Unit
+      metric:
+        GL2 Request Credit Stall:
+          avg: SUM(GL1C_STALL_GL1_GL2_REQ_CREDITS_sum) / SUM($denom)
+          min: MIN(GL1C_STALL_GL1_GL2_REQ_CREDITS_sum / $denom)
+          max: MAX(GL1C_STALL_GL1_GL2_REQ_CREDITS_sum / $denom)
+          unit: (Cycles + $normUnit)
+        Buffer Full Stall:
+          avg: SUM(GL1C_STALL_BUFFER_FULL_sum) / SUM($denom)
+          min: MIN(GL1C_STALL_BUFFER_FULL_sum / $denom)
+          max: MAX(GL1C_STALL_BUFFER_FULL_sum / $denom)
+          unit: (Cycles + $normUnit)
+  metrics_description:
+    Total Requests: >-
+      All requests received by GL1C. Navi4x has no GL1 cache; these counters measure the request interface.
+    Read Requests: >-
+      Read requests received by GL1C. Navi4x has no GL1 cache; these counters measure the request interface.
+    Write Requests: >-
+      Write requests received by GL1C. Navi4x has no GL1 cache; these counters measure the request interface.
+    GL2 Read Requests: >-
+      Read requests sent from GL1C to GL2. Navi4x has no GL1 cache; these counters measure the request interface.
+    GL2 Read 128B Requests: >-
+      128-byte read requests sent from GL1C to GL2. Navi4x has no GL1 cache; these counters measure the request interface.
+    GL2 Write Requests: >-
+      Write requests sent from GL1C to GL2. Navi4x has no GL1 cache; these counters measure the request interface.
+    GL1C Interface Busy: >-
+      Percentage of GL1C interface cycles reported busy. Navi4x has no GL1 cache.
+    GL1C Interface Starve: >-
+      Percentage of GL1C interface cycles reported starved. This is request-interface activity rather than a cache hit metric.
+    GL2 Request Credit Stall: >-
+      GL1C cycles stalled for GL2 request credits.
+    Buffer Full Stall: >-
+      GL1C cycles stalled because an interface buffer is full.

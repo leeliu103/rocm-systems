@@ -48,6 +48,11 @@ def is_gfx1250_arch(arch_name: str) -> bool:
     return arch_name == "gfx1250"
 
 
+def is_gfx1201_arch(arch_name: str) -> bool:
+    """Check if arch is gfx1201 (RDNA 4), which reuses the RDNA 3.5 layout."""
+    return arch_name == "gfx1201"
+
+
 # gfx1250 metric_table ids -> documentation section names (disambiguated
 # where multiple panels reuse generic titles like "Utilization").
 GFX1250_PANEL_ID_TO_SECTION: dict[int, str] = {
@@ -175,7 +180,7 @@ def format_yaml_scalar(value: str):
 
 def normalize_docs_section_name(arch_name: str, section_name: str) -> str:
     """Apply docs-only section name cleanup for selected architectures."""
-    if not is_gfx115x_ip_variant(arch_name):
+    if not (is_gfx115x_ip_variant(arch_name) or is_gfx1201_arch(arch_name)):
         return section_name
 
     replacements = {
@@ -292,11 +297,26 @@ RDNA35_PANEL_ID_TO_SECTION_BY_ARCH: dict[int, str] = {
     1702: "Shader Engine Utilization",
 }
 
+# RDNA 4 (gfx1201) metric_table ids -> section names: the RDNA 3.5 layout with
+# the tables gfx1201 retitles (GL1C is an interface only, not a GL1 cache).
+GFX1201_PANEL_ID_TO_SECTION: dict[int, str] = {
+    **RDNA35_PANEL_ID_TO_SECTION_BY_ARCH,
+    306: "Memory chart - GL1C Interface",
+    307: "Memory chart - GL1C-GL2 Interface",
+    901: "GL0 Clock Activity",
+    1101: "GL1C Interface Activity",
+    1102: "GL1C Request Statistics",
+    1104: "GL1C-GL2 Interface",
+    1105: "GL1C Interface Stalls",
+}
+
 
 def panel_id_to_section(arch_name: str, table_id: int | None) -> str | None:
     """Resolve documentation section name for a metric_table id (arch-specific)."""
     if table_id is None:
         return None
+    if is_gfx1201_arch(arch_name):
+        return GFX1201_PANEL_ID_TO_SECTION.get(table_id)
     if is_gfx115x_ip_variant(arch_name):
         return RDNA35_PANEL_ID_TO_SECTION_BY_ARCH.get(table_id)
     if is_gfx1250_arch(arch_name):

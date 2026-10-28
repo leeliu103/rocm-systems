@@ -51,6 +51,11 @@ Not every feature works on every architecture. Check there before promising a
 result, and let the tool's own error message stand when a feature is
 unavailable.
 
+RDNA4 gfx1201 uses the RDNA counter panels. Roofline and GCEA analysis are
+unavailable. Read VALU throughput as instruction throughput; do not convert
+the aggregate count to FLOPs. GL2-to-fabric request bytes are not physical
+GDDR traffic.
+
 ## 2. Collect what you need before profiling
 
 Ask once:

@@ -73,6 +73,16 @@ class TestMIGPUSpecs:
             )
             assert result.lower() == expected_model.lower()
 
+    @pytest.mark.parametrize(
+        "chip_id, model",
+        [(30032, "RDNA4_RX9070"), (30033, "RDNA4_AI_PRO_R9700")],
+    )
+    def test_gfx1201_model_metadata(self, chip_id, model):
+        assert MIGPUSpecs.get_gpu_model("gfx1201", str(chip_id)) == model
+        assert MIGPUSpecs.get_gpu_series("gfx1201") == "RDNA4"
+        assert MIGPUSpecs.get_num_dies("gfx1201", model) == 1
+        assert MIGPUSpecs.get_memory_levels(model) == ["LDS", "L0", "L2", "MALL"]
+
     # -- get_perfmon_config --------------------------------------------------
 
     def test_get_perfmon_config_all_archs(self):
@@ -113,6 +123,7 @@ class TestMIGPUSpecs:
             "gfx1151",
             "gfx1152",
             "gfx1153",
+            "gfx1201",
             "gfx908",
             None,
             "",

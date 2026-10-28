@@ -3,7 +3,10 @@
 
 """Unit tests for the gfx11 memory-chart renderer."""
 
+import json
+import sys
 from pathlib import Path
+from xml.etree import ElementTree
 
 import common
 import pytest
@@ -14,22 +17,84 @@ from utils.mem_chart_common import strip_ansi
 
 DEFAULT_TITLE = "3. Memory Chart (Normalization: per_kernel)"
 
-MEM_CHART_PANEL_YAML = (
-    Path(common.SRC)
-    / "rocprof_compute_soc"
-    / "analysis_configs"
-    / "gfx115x"
-    / "0300_memory_chart.yaml"
-)
+ANALYSIS_CONFIG_DIR = Path(common.SRC) / "rocprof_compute_soc" / "analysis_configs"
 
 
-def mem_chart_yaml_metric_names() -> list[str]:
-    panel = yaml.safe_load(MEM_CHART_PANEL_YAML.read_text(encoding="utf-8"))
+def mem_chart_yaml_metric_names(arch: str = "gfx115x") -> list[str]:
+    path = ANALYSIS_CONFIG_DIR / arch / "0300_memory_chart.yaml"
+    panel = yaml.safe_load(path.read_text(encoding="utf-8"))
     return [
         name
         for entry in panel["Panel Config"]["data source"]
         for name in entry["metric_table"]["metric"]
     ]
+
+
+@pytest.mark.parametrize("entry", ["plot", "txt", "svg"])
+@pytest.mark.parametrize(
+    "metric, value, expected",
+    [
+        ("ICache-GL1 Request Rate", 1234567890123, "1.23e+12 req/s"),
+        ("DCache-GL1 Request Rate", 1234567890123, "1.23e+12 req/s"),
+        ("GL0 Request Rate (TCP Cache)", 1234567890123, "Req/s 1.23e+12"),
+        ("TCP-GL1 Write Request Rate", 1234567890123, "1.23e+12 req/s"),
+        ("LDS Indexed-active Cycles", 1234567890123, "1.23e+12"),
+        ("LDS Bank Conflict Cycles", 1234567890123, "1.23e+12"),
+        ("LDS Instructions", 1234567890123, "1.23e+12"),
+        ("LDS Bank Conflict Cycle Ratio", 12.5, "12.5%"),
+        ("GL1C Interface Busy", 12.5, "12.5%"),
+        ("GL1C Request Credit Stall", 12.5, "12.5%"),
+    ],
+)
+def test_gfx1201_yaml_values_reach_plot_and_exports(
+    entry, metric, value, expected, monkeypatch, tmp_path
+):
+    """gfx1201 YAML fields survive both shared normalization paths."""
+    metrics = dict.fromkeys(mem_chart_yaml_metric_names("gfx1201"))
+    assert metric in metrics
+    metrics[metric] = value
+    if entry == "plot":
+        output = mem_chart_gfx11.plot_mem_chart(
+            metrics, chart_title=DEFAULT_TITLE, gpu_arch="gfx1201"
+        )
+    else:
+        data_path = tmp_path / "metrics.json"
+        output_path = tmp_path / f"chart.{entry}"
+        data_path.write_text(json.dumps(metrics), encoding="utf-8")
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "mem_chart_gfx11",
+                "--data",
+                str(data_path),
+                "--arch",
+                "gfx1201",
+                f"--{entry}",
+                str(output_path),
+            ],
+        )
+        mem_chart_gfx11.main()
+        output = output_path.read_text(encoding="utf-8")
+        if entry == "svg":
+            output = "".join(ElementTree.fromstring(output).itertext()).replace(
+                "\xa0", " "
+            )
+    assert expected in strip_ansi(output)
+
+
+@pytest.mark.parametrize("value, expected", [(0, "0 req/s"), (None, "N/A req/s")])
+def test_gfx1201_request_rates_preserve_zero_and_missing(value, expected):
+    metrics = dict.fromkeys(mem_chart_yaml_metric_names("gfx1201"), value)
+    output = strip_ansi(
+        mem_chart_gfx11.plot_mem_chart(
+            metrics, chart_title=DEFAULT_TITLE, gpu_arch="gfx1201"
+        )
+    )
+    assert output.count(expected) == 2  # TCP writes and combined SQC reads
+    expected_gl0 = "Req/s 0" if value == 0 else "Req/s N/A"
+    assert expected_gl0 in output
+    assert "Indexed cycles" in output and "Conflict cycles" in output
 
 
 # =============================================================================
@@ -43,6 +108,32 @@ class TestGetSampleMetrics:
         second = mem_chart_gfx11.get_sample_metrics()
         first["TCP-GL1 Read Bandwidth"] = 0
         assert second["TCP-GL1 Read Bandwidth"] != 0
+
+    def test_gfx1201_sample_keys_match_yaml(self):
+        sample = mem_chart_gfx11.DEFAULT_SAMPLE_METRICS_GFX1201
+        assert set(sample) == set(mem_chart_yaml_metric_names("gfx1201"))
+
+
+@pytest.mark.parametrize(
+    "arch, absent, present",
+    [
+        ("gfx1201", ("N/A",), ("Instructions", "Req Credits", "Req/s", "Fabric")),
+        (None, ("N/A",), ("GCEA", "DRAM", "System Memory")),
+    ],
+)
+def test_cli_preview_uses_arch_sample(arch, absent, present, monkeypatch, tmp_path):
+    """The no --data CLI preview fills every metric of the requested layout."""
+    output_path = tmp_path / "chart.txt"
+    argv = ["mem_chart_gfx11", "--txt", str(output_path)]
+    if arch:
+        argv += ["--arch", arch]
+    monkeypatch.setattr(sys, "argv", argv)
+    mem_chart_gfx11.main()
+    output = output_path.read_text(encoding="utf-8")
+    for text in present:
+        assert text in output
+    for text in absent:
+        assert text not in output
 
 
 # =============================================================================
@@ -73,6 +164,40 @@ class TestPlotMemChartGfx11:
         assert norm["GL0 Cache Hit Rate (TCP Cache)"] == 1.0
         assert "noise" not in norm
         assert norm["ICache Requests"] is None
+
+    def test_gfx1201_interface_labels(self) -> None:
+        metrics = {
+            "LDS Instructions": 1234,
+            "LDS Bank Conflict Cycle Ratio": 12.5,
+            "GL1C Interface Busy": 37.5,
+            "GL1C Request Credit Stall": 6.25,
+        }
+        output = strip_ansi(
+            mem_chart_gfx11.plot_mem_chart(
+                metrics, chart_title=DEFAULT_TITLE, gpu_arch="gfx1201"
+            )
+        )
+        assert "GL1C" in output
+        assert "GL1 Cache" not in output
+        assert "Instructions" in output and "1.23e+03" in output
+        assert "Cycle ratio" in output and "12.5%" in output
+        assert "37.5%" in output
+        assert "Req Credits" in output and "6.2%" in output
+        assert "N/A" in output
+
+    def test_gfx1201_chart_ends_at_measured_fabric_traffic(self) -> None:
+        metrics = dict.fromkeys(mem_chart_yaml_metric_names("gfx1201"), 1.0)
+        metrics["GL2-Fabric Read BW"] = 64e9
+        metrics["GL2-Fabric Write BW"] = 24e9
+        output = strip_ansi(
+            mem_chart_gfx11.plot_mem_chart(
+                metrics, chart_title=DEFAULT_TITLE, gpu_arch="gfx1201"
+            )
+        )
+        assert "64.0 GB/s" in output and "24.0 GB/s" in output
+        assert "Fabric ─" in output
+        for absent in ("SysArb", "GCEA", "DDR5", "Total:", "System Memory", "N/A"):
+            assert absent not in output
 
 
 # =============================================================================
@@ -117,7 +242,7 @@ class TestZeroVersusMissingMetrics:
 
 
 class TestMemChartPanelYamlSync:
-    """gfx115x chart metric names must track the YAML on disk."""
+    """Chart metric names must track the YAML on disk for each architecture."""
 
     def test_panel_metric_keys_match_yaml_in_order(self):
         assert (
@@ -125,10 +250,17 @@ class TestMemChartPanelYamlSync:
             == mem_chart_yaml_metric_names()
         )
 
-    def test_every_chart_lookup_resolves_against_yaml(self):
-        metrics = dict.fromkeys(mem_chart_yaml_metric_names(), 1.0)
+    @pytest.mark.parametrize(
+        "arch, layout",
+        [
+            ("gfx115x", mem_chart_gfx11._GFX115X_LAYOUT),
+            ("gfx1201", mem_chart_gfx11._GFX1201_LAYOUT),
+        ],
+    )
+    def test_every_chart_lookup_resolves_against_yaml(self, arch, layout):
+        metrics = dict.fromkeys(mem_chart_yaml_metric_names(arch), 1.0)
         extracted = mem_chart_gfx11._extract_metrics(
-            mem_chart_gfx11.normalize_mem_chart_metrics(metrics)
+            mem_chart_gfx11.normalize_mem_chart_metrics(metrics), layout
         )
         unresolved = sorted(key for key, value in extracted.items() if value is None)
         assert not unresolved, f"metric names drifted from the YAML: {unresolved}"
